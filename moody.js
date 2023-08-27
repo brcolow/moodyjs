@@ -164,18 +164,19 @@ class DiagonalTable extends Table {
     return this.sumOfDisplacements.map((_, i, arr) => roundTo((correctionFactor * i + (0.5 * this.sumOfDisplacements[this.numStations - 1] - this.midStationValue(this.sumOfDisplacements.slice(1)))), 2)); 
   }
 
+  // (0,0) origin is bottom left corner of surface plate.
   get vertices() {
     if (this.lineSegment.start == Direction.Northwest) {
       // Top-Starting Diagonal
       // y = -(table_width/table_height) * x  + table_height
       // sin(theta) = y / reflector_foot_spacing
       // tan(theta) = y / x
-      // We want to map the numStations z height results to the (x,y,z) points on the diagonal...what is equation for x and y for each i (each reflector foot spacing station).
       const x = i * Math.sin(Math.atan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches;
       const y = this.tableHeightInInches - (i * Math.sqrt(Math.pow(this.reflectorFootSpacingInches, 2) - Math.pow(Math.sin(Math.atan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches), 2));
       return this.displacementsFromBaseLineLinear.map((z, i) => [x, y, z]);
     } else {
-      // Bottom starting diagonal.
+      // Bottom starting diagonal
+      // y = (table_width/table_height) * x
       const x = this.tableWidthInInches - (i *  Math.sin(Math.arctan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches);
       const y = this.tableHeightInInches - (i * Math.sqrt(Math.pow(this.reflectorFootSpacingInches, 2) - Math.pow(Math.sin(Math.atan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches), 2));
       return this.displacementsFromBaseLineLinear.map((z, i) => [x, y, z]);
@@ -205,6 +206,7 @@ class PerimeterTable extends Table {
     }
   }
 
+  // (0,0) origin is bottom left corner of surface plate.
   get vertices() {
     if (this.lineSegment.start == Direction.Northeast && this.lineSegment.end == Direction.Northwest) {
       // North Perimeter
@@ -281,6 +283,7 @@ class CenterTable extends Table {
     return this.errorShiftedOut.map(x => roundTo((x + Math.abs(this.lowestValueInColumn6ForAllTables)), 2));
   }
 
+  // (0,0) origin is bottom left corner of surface plate.
   get vertices() {
     if (this.lineSegment.start == Direction.East) {
       // Horizontal Center Line
@@ -467,12 +470,3 @@ window.addEventListener('DOMContentLoaded', (event) => {
 //  suggestedNumberOfDiagonalStations
 //  suggestedNumberOfHorizontalStations
 //  suggestedNumberOfVerticalStations
-
-// (0,0) origin is bottom left corner of surface plate.
-// Equation for bottom-starting diagonal line:
-// y = (table_width/table_height) * x
-
-// Top starting:
-// y = -(table_width/table_height) * x  + table_height
-
-// For the other lines, one of x or y is constant and the other changes by reflector_foot_spacing each iteration.
