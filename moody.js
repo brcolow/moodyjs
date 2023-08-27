@@ -117,7 +117,7 @@ class Table {
     return this.sumOfDisplacements.map((_, i, arr) => roundTo(difference + ((arr.length - i - 1) * correctionFactor), 2)); 
   }
 
-  // Returns the value of the "middle" station. If the there is no middle (number of readings is odd then return average of
+  // Returns the value of the "middle" station. If the there is no middle (number of readings is odd) then return average of
   // the two middle-most entries.
   midStationValue(arr) {
     if (arr.length % 2 === 0) {
