@@ -460,13 +460,43 @@ const moodyReport = new MoodyReport(surfacePlate,
 
 console.log(moodyReport.printDebug());
 
+const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "southPerimeter", "eastPerimeter", "westPerimeter", "horizontalCenterLine", "verticalCenterLine"]
 window.addEventListener('DOMContentLoaded', (event) => {
-  document.getElementById("go").addEventListener("click", event => {});
+  document.getElementById("go").addEventListener("click", event => {
+    document.getElementById("plateHeight").value = surfacePlateHeightInches
+    document.getElementById("plateWidth").value = surfacePlateWidthInches
+    document.getElementById("reflectorFootSpacing").value = reflectorFootSpacingInches
+    const surfacePlate2 = new SurfacePlate(document.getElementById("plateHeight").value,
+      document.getElementById("plateWidth").value,
+      document.getElementById("reflectorFootSpacing").value)
+
+      document.getElementById('plateDiagonal').value = surfacePlate2.surfacePlateDiagonalInches
+      document.getElementById('diagonalInset').value = surfacePlate2.suggestedDiagonalInset
+      document.getElementById('numHorizontalStations').value = surfacePlate2.suggestedNumberOfHorizontalStations
+      document.getElementById('numVerticalStations').value = surfacePlate2.suggestedNumberOfVerticalStations
+      document.getElementById('numDiagonalStations').value = surfacePlate2.suggestedNumberOfDiagonalStations
+      lines.forEach((line) => {
+        const linePropertyName = line[0].toUpperCase() + line.slice(1)
+        document.getElementById(line + "Table").createCaption().textContent = surfacePlate2[linePropertyName].name + " (" + surfacePlate2[linePropertyName].displayName() + ")"
+        // Delete all non-header rows from table.
+        document.getElementById(line + "Table").getElementsByTagName("tbody")[0].innerHTML = document.getElementById(line + "Table").rows[0].innerHTML
+        let numberOfStations
+        if (line.endsWith('Diagonal')) {
+          numberOfStations = surfacePlate2.suggestedNumberOfDiagonalStations
+        } else if (line.startsWith('north') || line.startsWith('south') || line.startsWith('horizontal')) {
+          numberOfStations = surfacePlate2.suggestedNumberOfHorizontalStations
+        } else {
+          numberOfStations = surfacePlate2.suggestedNumberOfVerticalStations
+        }
+        for (i = 0; i < numberOfStations; i++) {
+          const row = document.getElementById(line + "Table").insertRow()
+          row.insertCell().textContent = i + 1
+          const readingInput = document.createElement("input")
+          readingInput.id = line + "Table" + i
+          row.insertCell().appendChild(readingInput)
+        }
+        document.getElementById(line + "Table").style.visibility = "visible";
+      });
+     
+  });
 });
-
-
-//  surfacePlateDiagonalInches
-//  suggestedDiagonalInset
-//  suggestedNumberOfDiagonalStations
-//  suggestedNumberOfHorizontalStations
-//  suggestedNumberOfVerticalStations
