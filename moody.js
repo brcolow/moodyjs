@@ -1,3 +1,4 @@
+"use strict";
 const sineOfOneArcsecond = 0.00000484813;
 
 function roundTo(n, numDecimalPlaces) {
@@ -488,7 +489,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
         } else {
           numberOfStations = surfacePlate2.suggestedNumberOfVerticalStations
         }
-        for (i = 0; i < numberOfStations; i++) {
+        for (let i = 0; i < numberOfStations; i++) {
           const row = document.getElementById(line + "Table").insertRow()
           row.insertCell().textContent = i + 1
           const readingInput = document.createElement("input")
