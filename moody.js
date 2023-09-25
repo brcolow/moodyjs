@@ -449,34 +449,106 @@ const reflectorFootSpacingInches = 4
 // TODO: Use a unit pair to specify reflector foot spacing and surface plate width/height and remove naming *Inches
 
 const surfacePlate = new SurfacePlate(48, 72, reflectorFootSpacingInches)
-const moodyReport = new MoodyReport(surfacePlate,
-  [6.5, 6.0, 5.0, 5.2, 5.5, 5.6, 5.5, 5.0, 5.5, 4.8, 5.0, 5.2, 5.3, 4.9, 4.6, 4.2, 5.3, 4.9, 4.5, 3.5],
-  [6.6, 5.4, 5.4, 5.2, 5.5, 5.7, 5.0, 5.0, 5.4, 4.5, 4.4, 4.5, 4.5, 4.8, 4.2, 4.2, 4.2, 4.8, 4.3, 3.2],
-  [20.5, 19.7, 20.5, 20.3, 20.2, 19.9, 19.0, 19.5, 18.8, 18.6, 18.7, 18.6, 18.4, 18.5, 19.0, 17.9],
-  [3.5, 2.1, 2.5, 2.8, 3.4, 3.2, 3.5, 4.0, 4.2, 3.5],
-  [16.4, 15, 15.6, 15.5, 15.1, 15.3, 15.1, 14.6, 14, 13.5, 13.5, 13.3, 13.3, 13.4, 14, 13.9],
-  [6, 4.6, 4.5, 4.7, 5.0, 4.5, 5.9, 6, 6, 4.9],
-  [11.7, 12.4, 12.1, 12.5, 12.0, 11.5, 11.5, 11.3, 11.3, 10.3, 10.8, 10.3, 10, 10.7, 10.4, 10.4],
-  [6.6, 6.4, 6.3, 6.5, 6.6, 6.9, 7.5, 7.4, 7.1, 7])
+const moodyData =  [
+  [6.5, 6.0, 5.0, 5.2, 5.5, 5.6, 5.5, 5.0, 5.5, 4.8, 5.0, 5.2, 5.3, 4.9, 4.6, 4.2, 5.3, 4.9, 4.5, 3.5], // topStartingDiagonal
+  [6.6, 5.4, 5.4, 5.2, 5.5, 5.7, 5.0, 5.0, 5.4, 4.5, 4.4, 4.5, 4.5, 4.8, 4.2, 4.2, 4.2, 4.8, 4.3, 3.2], // bottomStartingDiagonal
+  [20.5, 19.7, 20.5, 20.3, 20.2, 19.9, 19.0, 19.5, 18.8, 18.6, 18.7, 18.6, 18.4, 18.5, 19.0, 17.9],     // northPerimeter
+  [3.5, 2.1, 2.5, 2.8, 3.4, 3.2, 3.5, 4.0, 4.2, 3.5],                                                   // eastPerimeter
+  [16.4, 15, 15.6, 15.5, 15.1, 15.3, 15.1, 14.6, 14, 13.5, 13.5, 13.3, 13.3, 13.4, 14, 13.9],           // southPerimeter
+  [6, 4.6, 4.5, 4.7, 5.0, 4.5, 5.9, 6, 6, 4.9],                                                         // westPerimeter
+  [11.7, 12.4, 12.1, 12.5, 12.0, 11.5, 11.5, 11.3, 11.3, 10.3, 10.8, 10.3, 10, 10.7, 10.4, 10.4],       // horizontalCenter
+  [6.6, 6.4, 6.3, 6.5, 6.6, 6.9, 7.5, 7.4, 7.1, 7]]                                                     // verticalCenter
+const moodyReport = new MoodyReport(surfacePlate, ...moodyData)
 
 console.log(moodyReport.printDebug());
 
-const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "southPerimeter", "eastPerimeter", "westPerimeter", "horizontalCenterLine", "verticalCenterLine"]
-window.addEventListener('DOMContentLoaded', (event) => {
-  document.getElementById("go").addEventListener("click", event => {
+const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter", "southPerimeter", "westPerimeter", "horizontalCenterLine", "verticalCenterLine"]
+window.addEventListener('DOMContentLoaded', event => {
+
+  document.getElementById('fillTestData').addEventListener("click", event => {
+    lines.forEach((line, lineIndex) => {
+      console.log(line + " data: " + moodyData[lineIndex])
+      moodyData[lineIndex].forEach((tableEntry, index) => {
+      document.getElementById(line + "Table" + index).value = tableEntry
+      });
+    });
+  });
+
+  document.getElementById("createTables").addEventListener("click", event => {
     document.getElementById("plateHeight").value = surfacePlateHeightInches
     document.getElementById("plateWidth").value = surfacePlateWidthInches
     document.getElementById("reflectorFootSpacing").value = reflectorFootSpacingInches
+    document.getElementById('tableGraphic').style.visibility = "visible"
+    const surfacePlatePercentHeight = 100 * (surfacePlateHeightInches / (surfacePlateWidthInches + surfacePlateHeightInches))
+    const surfacePlatePercentWidth = 100 * (surfacePlateWidthInches / (surfacePlateWidthInches + surfacePlateHeightInches))
+    document.getElementById('tableGraphic').setAttribute("viewBox", "0 0 " + surfacePlatePercentWidth + " " + surfacePlatePercentHeight)
+    // document.getElementById('tableGraphic').setAttribute("height", surfacePlatePercentHeight);
+    document.getElementById('tableGraphic').setAttribute("width", "30%")
+    document.getElementById('outsideRect').setAttribute("width", surfacePlatePercentWidth)
+    document.getElementById('outsideRect').setAttribute("height", surfacePlatePercentHeight)
     const surfacePlate2 = new SurfacePlate(document.getElementById("plateHeight").value,
       document.getElementById("plateWidth").value,
       document.getElementById("reflectorFootSpacing").value)
+      const plateDiagonalAngle = Math.atan(surfacePlateWidthInches / surfacePlateHeightInches)
+      const xInset = surfacePlate2.suggestedDiagonalInset * Math.sin(plateDiagonalAngle)
+      const yInset = surfacePlate2.suggestedDiagonalInset * Math.cos(plateDiagonalAngle)
+      console.log("xInset: " + xInset)
+      console.log("yInset: " + yInset)
+      console.log("plateDiagonalAngle: " + plateDiagonalAngle)
+      document.getElementById('insideRect').setAttribute("x", xInset)
+      document.getElementById('insideRect').setAttribute("y", yInset)
+      document.getElementById('insideRect').setAttribute("width", surfacePlatePercentWidth - (2 * xInset))
+      document.getElementById('insideRect').setAttribute("height", surfacePlatePercentHeight - (2 * yInset))
 
+      document.getElementById('topStartingDiagonalLine').setAttribute("x1", xInset)
+      document.getElementById('topStartingDiagonalLine').setAttribute("y1", yInset)
+      document.getElementById('topStartingDiagonalLine').setAttribute("x2", surfacePlatePercentWidth - xInset)
+      document.getElementById('topStartingDiagonalLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
+
+      document.getElementById('bottomStartingDiagonalLine').setAttribute("x1", xInset)
+      document.getElementById('bottomStartingDiagonalLine').setAttribute("y1", surfacePlatePercentHeight - yInset)
+      document.getElementById('bottomStartingDiagonalLine').setAttribute("x2", surfacePlatePercentWidth - xInset)
+      document.getElementById('bottomStartingDiagonalLine').setAttribute("y2", yInset)
+
+      document.getElementById('northPerimeterLine').setAttribute("x1", xInset)
+      document.getElementById('northPerimeterLine').setAttribute("y1", yInset)
+      document.getElementById('northPerimeterLine').setAttribute("x2", surfacePlatePercentWidth - xInset)
+      document.getElementById('northPerimeterLine').setAttribute("y2", yInset)
+
+      document.getElementById('eastPerimeterLine').setAttribute("x1", surfacePlatePercentWidth - xInset)
+      document.getElementById('eastPerimeterLine').setAttribute("y1", yInset)
+      document.getElementById('eastPerimeterLine').setAttribute("x2", surfacePlatePercentWidth - xInset)
+      document.getElementById('eastPerimeterLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
+
+      document.getElementById('southPerimeterLine').setAttribute("x1", surfacePlatePercentWidth - xInset)
+      document.getElementById('southPerimeterLine').setAttribute("y1", surfacePlatePercentHeight - yInset)
+      document.getElementById('southPerimeterLine').setAttribute("x2", xInset)
+      document.getElementById('southPerimeterLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
+
+      document.getElementById('westPerimeterLine').setAttribute("x1", xInset)
+      document.getElementById('westPerimeterLine').setAttribute("y1", surfacePlatePercentHeight - yInset)
+      document.getElementById('westPerimeterLine').setAttribute("x2", xInset)
+      document.getElementById('westPerimeterLine').setAttribute("y2", yInset)
+
+      document.getElementById('horizontalCenterLine').setAttribute("x1", surfacePlatePercentWidth - xInset)
+      document.getElementById('horizontalCenterLine').setAttribute("y1", surfacePlatePercentHeight / 2)
+      document.getElementById('horizontalCenterLine').setAttribute("x2", xInset)
+      document.getElementById('horizontalCenterLine').setAttribute("y2", surfacePlatePercentHeight / 2)
+
+      document.getElementById('verticalCenterLine').setAttribute("x1", surfacePlatePercentWidth / 2)
+      document.getElementById('verticalCenterLine').setAttribute("y1", yInset)
+      document.getElementById('verticalCenterLine').setAttribute("x2", surfacePlatePercentWidth / 2)
+      document.getElementById('verticalCenterLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
+
+      console.log("% width: " + surfacePlatePercentWidth)
+      console.log("inside rect width: " + (surfacePlatePercentWidth - xInset))
+      console.log("inside rect height: " + (surfacePlatePercentHeight - yInset))
       document.getElementById('plateDiagonal').value = surfacePlate2.surfacePlateDiagonalInches
       document.getElementById('diagonalInset').value = surfacePlate2.suggestedDiagonalInset
       document.getElementById('numHorizontalStations').value = surfacePlate2.suggestedNumberOfHorizontalStations
       document.getElementById('numVerticalStations').value = surfacePlate2.suggestedNumberOfVerticalStations
       document.getElementById('numDiagonalStations').value = surfacePlate2.suggestedNumberOfDiagonalStations
-      lines.forEach((line) => {
+      lines.forEach(line => {
         const linePropertyName = line[0].toUpperCase() + line.slice(1)
         document.getElementById(line + "Table").createCaption().textContent = surfacePlate2[linePropertyName].name + " (" + surfacePlate2[linePropertyName].displayName() + ")"
         // Delete all non-header rows from table.
@@ -489,7 +561,7 @@ window.addEventListener('DOMContentLoaded', (event) => {
         } else {
           numberOfStations = surfacePlate2.suggestedNumberOfVerticalStations
         }
-        for (let i = 0; i < numberOfStations; i++) {
+        for (let i = 0; i <= numberOfStations; i++) {
           const row = document.getElementById(line + "Table").insertRow()
           row.insertCell().textContent = i + 1
           const readingInput = document.createElement("input")

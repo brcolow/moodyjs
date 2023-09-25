@@ -7,12 +7,49 @@
 <label for="plateHeight">Surface plate height: </label><input placeholder="48" name="plateHeight" id="plateHeight" maxlength="5" /><br/>
 <label for="plateWidth">Surface plate width: </label><input placeholder="72" name="plateWidth" id="plateWidth" maxlength="5"/><br/>
 <label for="reflectorFootSpacing">Reflector foot spacing: </label><input placeholder="4" name="reflectorFootSpacing" id="reflectorFootSpacing" maxlength="5" /><br/>
-<button type="button" id="go">Go</button><br/><br/>
+<button type="button" id="createTables">Create Tables</button>&nbsp;<button type="button" id="fillTestData">Fill Test Data</button><br/><br/>
 <label for="plateDiagonal">Surface plate diagonal length: </label><input name="plateDiagonal" id="plateDiagonal" readonly /><br/>
 <label for="diagonalInset">Diagonal inset: </label><input name="diagonalInset" id="diagonalInset" readonly /><br/>
 <label for="numHorizontalStations">Number of Horizontal Stations: </label><input name="numHorizontalStations" id="numHorizontalStations" readonly /><br/>
 <label for="numVerticalStations">Number of Vertical Stations: </label><input name="numVerticalStations" id="numVerticalStations" readonly /><br/>
 <label for="numDiagonalStations">Number of Diagonal Stations: </label><input name="numDiagonalStations" id="numDiagonalStations" readonly /><br/>
+<br/>
+<svg id="tableGraphic" preserveAspectRatio="xMaxYMid meet" style="visibility: hidden; max-width: 500px">
+  <rect id="outsideRect" x="0" y="0" fill="white" stroke="black" stroke-width="0.01em"/>
+  <rect id="insideRect" fill="white" stroke="black" stroke-width="0.01em"/>
+  <line id="topStartingDiagonalLine" stroke="#F44336" stroke-width="0.018em"/>
+  <text style="font-size: 4px; fill: #F44336; dominant-baseline: central" dx="-0.05em" dy="-0.05em">
+    <textPath xlink:href="#topStartingDiagonalLine" startOffset="25%">⮞</textPath>
+  </text>
+  <line id="bottomStartingDiagonalLine" stroke="#FFEB3B" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: #FFEB3B; dominant-baseline: central" dx="-0.05em" dy="-0.05em">
+    <textPath xlink:href="#bottomStartingDiagonalLine" startOffset="75%">⮜</textPath>
+  </text>
+  <line id="northPerimeterLine" stroke="#4CAF50" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: #4CAF50; dominant-baseline: central" dy="-0.055em">
+    <textPath xlink:href="#northPerimeterLine" startOffset="75%">⮜</textPath>
+  </text>
+  <line id="eastPerimeterLine" stroke="#FF7F50" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: #FF7F50; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+    <textPath xlink:href="#eastPerimeterLine" startOffset="25%">⮞</textPath>
+  </text>
+  <line id="southPerimeterLine" stroke="#2196F3" stroke-width="0.018em"/>
+  <text style="font-size: 4px; fill: #2196F3; dominant-baseline: central;" dy="-0.055em">
+    <textPath xlink:href="#southPerimeterLine" startOffset="25%">⮞</textPath>
+  </text>
+  <line id="westPerimeterLine" stroke="#FF80AB" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: #FF80AB; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+    <textPath xlink:href="#westPerimeterLine" startOffset="75%">⮜</textPath>
+  </text>
+  <line id="horizontalCenterLine" stroke="#00BCD4" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: #00BCD4; dominant-baseline: central;" dy="-0.055em">
+    <textPath xlink:href="#horizontalCenterLine" startOffset="25%">⮞</textPath>
+  </text>
+  <line id="verticalCenterLine" stroke="#9C27B0" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: #9C27B0; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+    <textPath xlink:href="#verticalCenterLine" startOffset="25%">⮞</textPath>
+  </text>
+</svg>
 <table id="topStartingDiagonalTable" style="visibility: hidden">
   <tr>
     <th scope="col">Station No.</th>
@@ -52,7 +89,7 @@
     <th scope="col">Displacement from Base Plane (0.0001")</th>
   </tr>
 </table>
-<table id="southPerimeterTable" style="visibility: hidden">
+<table id="eastPerimeterTable" style="visibility: hidden">
   <tr>
     <th scope="col">Station No.</th>
     <th scope="col">Autcollimator Readings (0.1" arc)</th>
@@ -65,7 +102,7 @@
     <th scope="col">Displacement from Base Plane (0.0001")</th>
   </tr>
 </table>
-<table id="eastPerimeterTable" style="visibility: hidden">
+<table id="southPerimeterTable" style="visibility: hidden">
   <tr>
     <th scope="col">Station No.</th>
     <th scope="col">Autcollimator Readings (0.1" arc)</th>
