@@ -467,9 +467,10 @@ window.addEventListener('DOMContentLoaded', event => {
 
   document.getElementById('fillTestData').addEventListener("click", event => {
     lines.forEach((line, lineIndex) => {
-      console.log(line + " data: " + moodyData[lineIndex])
       moodyData[lineIndex].forEach((tableEntry, index) => {
-      document.getElementById(line + "Table" + index).value = tableEntry
+        if (index !== 0) {
+          document.getElementById(line + "Table" + index).value = tableEntry
+        }
       });
     });
   });
@@ -492,9 +493,6 @@ window.addEventListener('DOMContentLoaded', event => {
       const plateDiagonalAngle = Math.atan(surfacePlateWidthInches / surfacePlateHeightInches)
       const xInset = surfacePlate2.suggestedDiagonalInset * Math.sin(plateDiagonalAngle)
       const yInset = surfacePlate2.suggestedDiagonalInset * Math.cos(plateDiagonalAngle)
-      console.log("xInset: " + xInset)
-      console.log("yInset: " + yInset)
-      console.log("plateDiagonalAngle: " + plateDiagonalAngle)
       document.getElementById('insideRect').setAttribute("x", xInset)
       document.getElementById('insideRect').setAttribute("y", yInset)
       document.getElementById('insideRect').setAttribute("width", surfacePlatePercentWidth - (2 * xInset))
@@ -540,9 +538,6 @@ window.addEventListener('DOMContentLoaded', event => {
       document.getElementById('verticalCenterLine').setAttribute("x2", surfacePlatePercentWidth / 2)
       document.getElementById('verticalCenterLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
 
-      console.log("% width: " + surfacePlatePercentWidth)
-      console.log("inside rect width: " + (surfacePlatePercentWidth - xInset))
-      console.log("inside rect height: " + (surfacePlatePercentHeight - yInset))
       document.getElementById('plateDiagonal').value = surfacePlate2.surfacePlateDiagonalInches
       document.getElementById('diagonalInset').value = surfacePlate2.suggestedDiagonalInset
       document.getElementById('numHorizontalStations').value = surfacePlate2.suggestedNumberOfHorizontalStations
@@ -570,6 +565,9 @@ window.addEventListener('DOMContentLoaded', event => {
         }
         document.getElementById(line + "Table").style.visibility = "visible";
       });
-     
+    lines.forEach((line, lineIndex) => {
+      document.getElementById(line + "Table0").value = "0"
+      document.getElementById(line + "Table0").readOnly = true
+    });
   });
 });
