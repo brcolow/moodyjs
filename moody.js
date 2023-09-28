@@ -547,7 +547,7 @@ window.addEventListener('DOMContentLoaded', event => {
         const linePropertyName = line[0].toUpperCase() + line.slice(1)
         document.getElementById(line + "Table").createCaption().textContent = surfacePlate2[linePropertyName].name + " (" + surfacePlate2[linePropertyName].displayName() + ")"
         // Delete all non-header rows from table.
-        document.getElementById(line + "Table").getElementsByTagName("tbody")[0].innerHTML = document.getElementById(line + "Table").rows[0].innerHTML
+        Array.from(document.getElementById(line + "Table").getElementsByTagName("tbody")[0].getElementsByTagName("tr")).forEach(tr => tr.remove())
         let numberOfStations
         if (line.endsWith('Diagonal')) {
           numberOfStations = surfacePlate2.suggestedNumberOfDiagonalStations
@@ -557,7 +557,7 @@ window.addEventListener('DOMContentLoaded', event => {
           numberOfStations = surfacePlate2.suggestedNumberOfVerticalStations
         }
         for (let i = 0; i <= numberOfStations; i++) {
-          const row = document.getElementById(line + "Table").insertRow()
+          const row = document.getElementById(line + "Table").getElementsByTagName("tbody")[0].insertRow()
           row.insertCell().textContent = i + 1
           const readingInput = document.createElement("input")
           readingInput.id = line + "Table" + i

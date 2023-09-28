@@ -1,7 +1,59 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<script type="text/javascript" src="moody.js"></script>
+  <meta charset="UTF-8">
+  <title>MoodyJS</title>
+  <script type="text/javascript" src="moody.js"></script>
+  <style>
+    :root {
+      --l1-color: #F44336;
+      --l2-color: #FFEB3B;
+      --l3-color: #4CAF50;
+      --l4-color: #FF7F50;
+      --l5-color: #2196F3;
+      --l6-color: #FF80AB;
+      --l7-color: #00BCD4;
+      --l8-color: #9C27B0;
+    }
+    table {
+      table-layout: fixed;
+      width: 50%;
+      border-collapse: collapse;
+    }
+    thead th:nth-child(1) {
+      width: 4%;
+    }
+    thead th:nth-child(2) {
+      width: 12%;
+    }
+    thead th:nth-child(3) {
+      width: 12%;
+    }
+    thead th:nth-child(4) {
+      width: 12%;
+    }
+    thead th:nth-child(5) {
+      width: 12%;
+    }
+    thead th:nth-child(6) {
+      width: 12%;
+    }
+    thead th:nth-child(7) {
+      width: 12%;
+    }
+    thead th:nth-child(8) {
+      width: 12%;
+    }
+    thead th:nth-child(9) {
+      width: 12%;
+    }
+    th, td {
+      padding: 2px;
+    }
+    tbody td {
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
 <label for="plateHeight">Surface plate height: </label><input placeholder="48" name="plateHeight" id="plateHeight" maxlength="5" /><br/>
@@ -17,142 +69,166 @@
 <svg id="tableGraphic" preserveAspectRatio="xMaxYMid meet" style="visibility: hidden; max-width: 500px">
   <rect id="outsideRect" x="0" y="0" fill="white" stroke="black" stroke-width="0.01em"/>
   <rect id="insideRect" fill="white" stroke="black" stroke-width="0.01em"/>
-  <line id="topStartingDiagonalLine" stroke="#F44336" stroke-width="0.018em"/>
-  <text style="font-size: 4px; fill: #F44336; dominant-baseline: central" dx="-0.05em" dy="-0.05em">
+  <line id="topStartingDiagonalLine" stroke="var(--l1-color)" stroke-width="0.018em"/>
+  <text style="font-size: 4px; fill: var(--l1-color); dominant-baseline: central" dx="-0.05em" dy="-0.05em">
     <textPath xlink:href="#topStartingDiagonalLine" startOffset="25%">⮞</textPath>
   </text>
-  <line id="bottomStartingDiagonalLine" stroke="#FFEB3B" stroke-width="0.018em" />
-  <text style="font-size: 4px; fill: #FFEB3B; dominant-baseline: central" dx="-0.05em" dy="-0.05em">
+  <line id="bottomStartingDiagonalLine" stroke="var(--l2-color)" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: var(--l2-color); dominant-baseline: central" dx="-0.05em" dy="-0.05em">
     <textPath xlink:href="#bottomStartingDiagonalLine" startOffset="75%">⮜</textPath>
   </text>
-  <line id="northPerimeterLine" stroke="#4CAF50" stroke-width="0.018em" />
-  <text style="font-size: 4px; fill: #4CAF50; dominant-baseline: central" dy="-0.055em">
+  <line id="northPerimeterLine" stroke="var(--l3-color)" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: var(--l3-color); dominant-baseline: central" dy="-0.055em">
     <textPath xlink:href="#northPerimeterLine" startOffset="75%">⮜</textPath>
   </text>
-  <line id="eastPerimeterLine" stroke="#FF7F50" stroke-width="0.018em" />
-  <text style="font-size: 4px; fill: #FF7F50; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+  <line id="eastPerimeterLine" stroke="var(--l4-color)" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: var(--l4-color); dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
     <textPath xlink:href="#eastPerimeterLine" startOffset="25%">⮞</textPath>
   </text>
-  <line id="southPerimeterLine" stroke="#2196F3" stroke-width="0.018em"/>
-  <text style="font-size: 4px; fill: #2196F3; dominant-baseline: central;" dy="-0.055em">
+  <line id="southPerimeterLine" stroke="var(--l5-color)" stroke-width="0.018em"/>
+  <text style="font-size: 4px; fill: var(--l5-color); dominant-baseline: central;" dy="-0.055em">
     <textPath xlink:href="#southPerimeterLine" startOffset="25%">⮞</textPath>
   </text>
-  <line id="westPerimeterLine" stroke="#FF80AB" stroke-width="0.018em" />
-  <text style="font-size: 4px; fill: #FF80AB; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+  <line id="westPerimeterLine" stroke="var(--l6-color)" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: var(--l6-color); dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
     <textPath xlink:href="#westPerimeterLine" startOffset="75%">⮜</textPath>
   </text>
-  <line id="horizontalCenterLine" stroke="#00BCD4" stroke-width="0.018em" />
-  <text style="font-size: 4px; fill: #00BCD4; dominant-baseline: central;" dy="-0.055em">
+  <line id="horizontalCenterLine" stroke="var(--l7-color)" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: var(--l7-color); dominant-baseline: central;" dy="-0.055em">
     <textPath xlink:href="#horizontalCenterLine" startOffset="25%">⮞</textPath>
   </text>
-  <line id="verticalCenterLine" stroke="#9C27B0" stroke-width="0.018em" />
-  <text style="font-size: 4px; fill: #9C27B0; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+  <line id="verticalCenterLine" stroke="var(--l8-color)" stroke-width="0.018em" />
+  <text style="font-size: 4px; fill: var(--l8-color); dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
     <textPath xlink:href="#verticalCenterLine" startOffset="25%">⮞</textPath>
   </text>
 </svg>
-<table id="topStartingDiagonalTable" style="visibility: hidden">
-  <tr>
-    <th scope="col">Station No.</th>
-    <th scope="col">Autcollimator Readings (0.1" arc)</th>
-    <th scope="col">Angular Displacements (0.1" arc)</th>
-    <th scope="col">Sum of Displacements (0.1" arc)</th>
-    <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.0001")</th>
-  </tr>
+<table id="topStartingDiagonalTable" style="visibility: hidden; border: 3px solid var(--l1-color);">
+  <thead>
+    <tr>
+      <th scope="col">Station No.</th>
+      <th scope="col">Autcollimator Readings (0.1" arc)</th>
+      <th scope="col">Angular Displacements (0.1" arc)</th>
+      <th scope="col">Sum of Displacements (0.1" arc)</th>
+      <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.0001")</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
-<table id="bottomStartingDiagonalTable" style="visibility: hidden">
-  <tr>
-    <th scope="col">Station No.</th>
-    <th scope="col">Autcollimator Readings (0.1" arc)</th>
-    <th scope="col">Angular Displacements (0.1" arc)</th>
-    <th scope="col">Sum of Displacements (0.1" arc)</th>
-    <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.0001")</th>
-  </tr>
+<table id="bottomStartingDiagonalTable" style="visibility: hidden; border: 3px solid var(--l2-color);">
+  <thead>
+    <tr>
+      <th scope="col">Station No.</th>
+      <th scope="col">Autcollimator Readings (0.1" arc)</th>
+      <th scope="col">Angular Displacements (0.1" arc)</th>
+      <th scope="col">Sum of Displacements (0.1" arc)</th>
+      <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.0001")</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
-<table id="northPerimeterTable" style="visibility: hidden">
-  <tr>
-    <th scope="col">Station No.</th>
-    <th scope="col">Autcollimator Readings (0.1" arc)</th>
-    <th scope="col">Angular Displacements (0.1" arc)</th>
-    <th scope="col">Sum of Displacements (0.1" arc)</th>
-    <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.0001")</th>
-  </tr>
+<table id="northPerimeterTable" style="visibility: hidden; border: 3px solid var(--l3-color);">
+  <thead>
+    <tr>
+      <th scope="col">Station No.</th>
+      <th scope="col">Autcollimator Readings (0.1" arc)</th>
+      <th scope="col">Angular Displacements (0.1" arc)</th>
+      <th scope="col">Sum of Displacements (0.1" arc)</th>
+      <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.0001")</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
-<table id="eastPerimeterTable" style="visibility: hidden">
-  <tr>
-    <th scope="col">Station No.</th>
-    <th scope="col">Autcollimator Readings (0.1" arc)</th>
-    <th scope="col">Angular Displacements (0.1" arc)</th>
-    <th scope="col">Sum of Displacements (0.1" arc)</th>
-    <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.0001")</th>
-  </tr>
+<table id="eastPerimeterTable" style="visibility: hidden; border: 3px solid var(--l4-color);">
+  <thead>
+    <tr>
+      <th scope="col">Station No.</th>
+      <th scope="col">Autcollimator Readings (0.1" arc)</th>
+      <th scope="col">Angular Displacements (0.1" arc)</th>
+      <th scope="col">Sum of Displacements (0.1" arc)</th>
+      <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.0001")</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
-<table id="southPerimeterTable" style="visibility: hidden">
-  <tr>
-    <th scope="col">Station No.</th>
-    <th scope="col">Autcollimator Readings (0.1" arc)</th>
-    <th scope="col">Angular Displacements (0.1" arc)</th>
-    <th scope="col">Sum of Displacements (0.1" arc)</th>
-    <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.0001")</th>
-  </tr>
+<table id="southPerimeterTable" style="visibility: hidden; border: 3px solid var(--l5-color);">
+  <thead>
+    <tr>
+      <th scope="col">Station No.</th>
+      <th scope="col">Autcollimator Readings (0.1" arc)</th>
+      <th scope="col">Angular Displacements (0.1" arc)</th>
+      <th scope="col">Sum of Displacements (0.1" arc)</th>
+      <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.0001")</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
-<table id="westPerimeterTable" style="visibility: hidden">
-  <tr>
-    <th scope="col">Station No.</th>
-    <th scope="col">Autcollimator Readings (0.1" arc)</th>
-    <th scope="col">Angular Displacements (0.1" arc)</th>
-    <th scope="col">Sum of Displacements (0.1" arc)</th>
-    <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.0001")</th>
-  </tr>
+<table id="westPerimeterTable" style="visibility: hidden; border: 3px solid var(--l6-color);">
+  <thead>
+    <tr>
+      <th scope="col">Station No.</th>
+      <th scope="col">Autcollimator Readings (0.1" arc)</th>
+      <th scope="col">Angular Displacements (0.1" arc)</th>
+      <th scope="col">Sum of Displacements (0.1" arc)</th>
+      <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.0001")</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
-<table id="horizontalCenterLineTable" style="visibility: hidden">
-  <tr>
-    <th scope="col">Station No.</th>
-    <th scope="col">Autcollimator Readings (0.1" arc)</th>
-    <th scope="col">Angular Displacements (0.1" arc)</th>
-    <th scope="col">Sum of Displacements (0.1" arc)</th>
-    <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.0001")</th>
-  </tr>
+<table id="horizontalCenterLineTable" style="visibility: hidden; border: 3px solid var(--l7-color);">
+  <thead>
+    <tr>
+      <th scope="col">Station No.</th>
+      <th scope="col">Autcollimator Readings (0.1" arc)</th>
+      <th scope="col">Angular Displacements (0.1" arc)</th>
+      <th scope="col">Sum of Displacements (0.1" arc)</th>
+      <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.0001")</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
-<table id="verticalCenterLineTable" style="visibility: hidden">
-  <tr>
-    <th scope="col">Station No.</th>
-    <th scope="col">Autcollimator Readings (0.1" arc)</th>
-    <th scope="col">Angular Displacements (0.1" arc)</th>
-    <th scope="col">Sum of Displacements (0.1" arc)</th>
-    <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.1" arc)</th>
-    <th scope="col">Displacement from Base Plane (0.0001")</th>
-  </tr>
+<table id="verticalCenterLineTable" style="visibility: hidden; border: 3px solid var(--l8-color);">
+  <thead>
+    <tr>
+      <th scope="col">Station No.</th>
+      <th scope="col">Autcollimator Readings (0.1" arc)</th>
+      <th scope="col">Angular Displacements (0.1" arc)</th>
+      <th scope="col">Sum of Displacements (0.1" arc)</th>
+      <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+      <th scope="col">Displacement from Base Plane (0.0001")</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
 </table>
 </body>
 </html>
