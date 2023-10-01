@@ -162,7 +162,8 @@ class DiagonalTable extends Table {
     // Instead of starting at the middle and then iterating up and down, we proceed unidirectionally from first index.
     const correctionFactor = -this.sumOfDisplacements[this.numStations - 1] / (this.numStations - 1);
     // We slice the array because we don't want to count the first dummy 0 measurement that gets added.
-    return this.sumOfDisplacements.map((_, i, arr) => roundTo((correctionFactor * i + (0.5 * this.sumOfDisplacements[this.numStations - 1] - this.midStationValue(this.sumOfDisplacements.slice(1)))), 2)); 
+    return this.sumOfDisplacements.map((_, i, arr) => roundTo((correctionFactor * i +
+      (0.5 * this.sumOfDisplacements[this.numStations - 1] - this.midStationValue(this.sumOfDisplacements.slice(1)))), 2));
   }
 
   // (0,0) origin is bottom left corner of surface plate.
@@ -173,13 +174,15 @@ class DiagonalTable extends Table {
       // sin(theta) = y / reflector_foot_spacing
       // tan(theta) = y / x
       const x = i * Math.sin(Math.atan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches;
-      const y = this.tableHeightInInches - (i * Math.sqrt(Math.pow(this.reflectorFootSpacingInches, 2) - Math.pow(Math.sin(Math.atan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches), 2));
+      const y = this.tableHeightInInches - (i * Math.sqrt(Math.pow(this.reflectorFootSpacingInches, 2) -
+        Math.pow(Math.sin(Math.atan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches), 2));
       return this.displacementsFromBaseLineLinear.map((z, i) => [x, y, z]);
     } else {
       // Bottom starting diagonal
       // y = (table_width/table_height) * x
       const x = this.tableWidthInInches - (i *  Math.sin(Math.arctan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches);
-      const y = this.tableHeightInInches - (i * Math.sqrt(Math.pow(this.reflectorFootSpacingInches, 2) - Math.pow(Math.sin(Math.atan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches), 2));
+      const y = this.tableHeightInInches - (i * Math.sqrt(Math.pow(this.reflectorFootSpacingInches, 2) -
+        Math.pow(Math.sin(Math.atan(this.tableWidthInInches / this.tableHeightInInches)) * this.reflectorFootSpacingInches), 2));
       return this.displacementsFromBaseLineLinear.map((z, i) => [x, y, z]);
     }
   }
@@ -369,16 +372,31 @@ class MoodyReport {
   horizontalCenterTable;
   verticalCenterTable;
 
-  constructor(surfacePlate, topStartingDiagonalReadings, bottomStartingDiagonalReadings, northPerimeterReadings, eastPerimeterReadings, southPerimeterReadings, westPerimeterReadings, horizontalCenterReadings, verticalCenterReadings) {
+  constructor(surfacePlate, topStartingDiagonalReadings, bottomStartingDiagonalReadings, northPerimeterReadings, eastPerimeterReadings,
+    southPerimeterReadings, westPerimeterReadings, horizontalCenterReadings, verticalCenterReadings) {
     this.topStartingDiagonalTable = new DiagonalTable(surfacePlate.TopStartingDiagonal, topStartingDiagonalReadings, surfacePlate.reflectorFootSpacingInches);
     this.bottomStartingDiagonalTable = new DiagonalTable(surfacePlate.BottomStartingDiagonal, bottomStartingDiagonalReadings, surfacePlate.reflectorFootSpacingInches);
-    this.northPerimeterTable = new PerimeterTable(surfacePlate.NorthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations, this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], this.topStartingDiagonalTable.displacementsFromDatumPlane[0], northPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
-    this.eastPerimeterTable = new PerimeterTable(surfacePlate.EastPerimeter, surfacePlate.suggestedNumberOfVerticalStations, this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], this.topStartingDiagonalTable.displacementsFromDatumPlane[0], eastPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
-    this.southPerimeterTable = new PerimeterTable(surfacePlate.SouthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations, this.topStartingDiagonalTable.displacementsFromDatumPlane[0], this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], southPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
-    this.westPerimeterTable = new PerimeterTable(surfacePlate.WestPerimeter, surfacePlate.suggestedNumberOfVerticalStations, this.topStartingDiagonalTable.displacementsFromDatumPlane[0], this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], westPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
+    this.northPerimeterTable = new PerimeterTable(surfacePlate.NorthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations,
+      this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], this.topStartingDiagonalTable.displacementsFromDatumPlane[0],
+      northPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
+    this.eastPerimeterTable = new PerimeterTable(surfacePlate.EastPerimeter, surfacePlate.suggestedNumberOfVerticalStations,
+      this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], this.topStartingDiagonalTable.displacementsFromDatumPlane[0],
+      eastPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
+    this.southPerimeterTable = new PerimeterTable(surfacePlate.SouthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations,
+      this.topStartingDiagonalTable.displacementsFromDatumPlane[0], this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0],
+      southPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
+    this.westPerimeterTable = new PerimeterTable(surfacePlate.WestPerimeter, surfacePlate.suggestedNumberOfVerticalStations,
+      this.topStartingDiagonalTable.displacementsFromDatumPlane[0], this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0],
+      westPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
     // TODO: Are we passing the right value for firstValueOfColumn5 for {horizontal/vertical}CenterTable?
-    this.horizontalCenterTable = new CenterTable(surfacePlate.HorizontalCenter, surfacePlate.suggestedNumberOfHorizontalStations, this.eastPerimeterTable.midStationValue(this.eastPerimeterTable.displacementsFromDatumPlane), this.westPerimeterTable.midStationValue(this.westPerimeterTable.displacementsFromDatumPlane), horizontalCenterReadings, surfacePlate.reflectorFootSpacingInches);
-    this.verticalCenterTable = new CenterTable(surfacePlate.VerticalCenter, surfacePlate.suggestedNumberOfVerticalStations, this.northPerimeterTable.midStationValue(this.northPerimeterTable.displacementsFromDatumPlane), this.southPerimeterTable.midStationValue(this.southPerimeterTable.displacementsFromDatumPlane), verticalCenterReadings, surfacePlate.reflectorFootSpacingInches);
+    this.horizontalCenterTable = new CenterTable(surfacePlate.HorizontalCenter, surfacePlate.suggestedNumberOfHorizontalStations,
+      this.eastPerimeterTable.midStationValue(this.eastPerimeterTable.displacementsFromDatumPlane),
+      this.westPerimeterTable.midStationValue(this.westPerimeterTable.displacementsFromDatumPlane),
+      horizontalCenterReadings, surfacePlate.reflectorFootSpacingInches);
+    this.verticalCenterTable = new CenterTable(surfacePlate.VerticalCenter, surfacePlate.suggestedNumberOfVerticalStations,
+      this.northPerimeterTable.midStationValue(this.northPerimeterTable.displacementsFromDatumPlane),
+      this.southPerimeterTable.midStationValue(this.southPerimeterTable.displacementsFromDatumPlane),
+      verticalCenterReadings, surfacePlate.reflectorFootSpacingInches);
 
     // Moody uses North Perimeter Line as the example, for the other one's it requires a bit of thinking as to which
     // diagonal line values need to be copied to the other perimeter lines for consistency.
@@ -419,7 +437,8 @@ class MoodyReport {
     this.verticalCenterTable.displacementsFromDatumPlane.push(this.southPerimeterTable.midStationValue(this.southPerimeterTable.displacementsFromDatumPlane));
 
     // Find the lowest value in Column #6 across all tables:
-    const tables = [this.topStartingDiagonalTable, this.bottomStartingDiagonalTable, this.northPerimeterTable, this.eastPerimeterTable, this.southPerimeterTable, this.westPerimeterTable, this.horizontalCenterTable, this.verticalCenterTable]
+    const tables = [this.topStartingDiagonalTable, this.bottomStartingDiagonalTable, this.northPerimeterTable,
+      this.eastPerimeterTable, this.southPerimeterTable, this.westPerimeterTable, this.horizontalCenterTable, this.verticalCenterTable]
     const lowestValueInColumn6 = Math.min(...tables.map(table => table.lowestValueInColumn6))
     tables.forEach(table => table.lowestValueInColumn6ForAllTables = lowestValueInColumn6)
   }
@@ -462,7 +481,8 @@ const moodyReport = new MoodyReport(surfacePlate, ...moodyData)
 
 console.log(moodyReport.printDebug());
 
-const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter", "southPerimeter", "westPerimeter", "horizontalCenter", "verticalCenter"]
+const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter", "southPerimeter",
+  "westPerimeter", "horizontalCenter", "verticalCenter"]
 window.addEventListener('DOMContentLoaded', event => {
 
   document.getElementById('fillTestData').addEventListener("click", event => {
@@ -545,7 +565,8 @@ window.addEventListener('DOMContentLoaded', event => {
       document.getElementById('numDiagonalStations').value = surfacePlate2.suggestedNumberOfDiagonalStations
       lines.forEach(line => {
         const linePropertyName = line[0].toUpperCase() + line.slice(1)
-        document.getElementById(line + "Table").createCaption().textContent = surfacePlate2[linePropertyName].name + " (" + surfacePlate2[linePropertyName].displayName() + ")"
+        document.getElementById(line + "Table").createCaption().textContent =
+          surfacePlate2[linePropertyName].name + " (" + surfacePlate2[linePropertyName].displayName() + ")"
         // Delete all non-header rows from table.
         Array.from(document.getElementById(line + "Table").getElementsByTagName("tbody")[0].getElementsByTagName("tr")).forEach(tr => tr.remove())
         let numberOfStations
