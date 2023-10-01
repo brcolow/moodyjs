@@ -320,8 +320,8 @@ class SurfacePlate {
   SouthPerimeter = new LineSegment(Direction.Southeast, Direction.Southwest, "South Perimeter")
   WestPerimeter = new LineSegment(Direction.Northwest, Direction.Southwest, "West Perimeter")
   // The two center lines.
-  HorizontalCenterLine = new LineSegment(Direction.East, Direction.West, "Horizontal Center Line")
-  VerticalCenterLine = new LineSegment(Direction.North, Direction.South, "Vertical Center Line")
+  HorizontalCenter = new LineSegment(Direction.East, Direction.West, "Horizontal Center")
+  VerticalCenter = new LineSegment(Direction.North, Direction.South, "Vertical Center")
   surfacePlateHeightInches
   surfacePlateWidthInches
   surfacePlateDiagonalInches
@@ -377,8 +377,8 @@ class MoodyReport {
     this.southPerimeterTable = new PerimeterTable(surfacePlate.SouthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations, this.topStartingDiagonalTable.displacementsFromDatumPlane[0], this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], southPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
     this.westPerimeterTable = new PerimeterTable(surfacePlate.WestPerimeter, surfacePlate.suggestedNumberOfVerticalStations, this.topStartingDiagonalTable.displacementsFromDatumPlane[0], this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], westPerimeterReadings, surfacePlate.reflectorFootSpacingInches);
     // TODO: Are we passing the right value for firstValueOfColumn5 for {horizontal/vertical}CenterTable?
-    this.horizontalCenterTable = new CenterTable(surfacePlate.HorizontalCenterLine, surfacePlate.suggestedNumberOfHorizontalStations, this.eastPerimeterTable.midStationValue(this.eastPerimeterTable.displacementsFromDatumPlane), this.westPerimeterTable.midStationValue(this.westPerimeterTable.displacementsFromDatumPlane), horizontalCenterReadings, surfacePlate.reflectorFootSpacingInches);
-    this.verticalCenterTable = new CenterTable(surfacePlate.VerticalCenterLine, surfacePlate.suggestedNumberOfVerticalStations, this.northPerimeterTable.midStationValue(this.northPerimeterTable.displacementsFromDatumPlane), this.southPerimeterTable.midStationValue(this.southPerimeterTable.displacementsFromDatumPlane), verticalCenterReadings, surfacePlate.reflectorFootSpacingInches);
+    this.horizontalCenterTable = new CenterTable(surfacePlate.HorizontalCenter, surfacePlate.suggestedNumberOfHorizontalStations, this.eastPerimeterTable.midStationValue(this.eastPerimeterTable.displacementsFromDatumPlane), this.westPerimeterTable.midStationValue(this.westPerimeterTable.displacementsFromDatumPlane), horizontalCenterReadings, surfacePlate.reflectorFootSpacingInches);
+    this.verticalCenterTable = new CenterTable(surfacePlate.VerticalCenter, surfacePlate.suggestedNumberOfVerticalStations, this.northPerimeterTable.midStationValue(this.northPerimeterTable.displacementsFromDatumPlane), this.southPerimeterTable.midStationValue(this.southPerimeterTable.displacementsFromDatumPlane), verticalCenterReadings, surfacePlate.reflectorFootSpacingInches);
 
     // Moody uses North Perimeter Line as the example, for the other one's it requires a bit of thinking as to which
     // diagonal line values need to be copied to the other perimeter lines for consistency.
@@ -462,7 +462,7 @@ const moodyReport = new MoodyReport(surfacePlate, ...moodyData)
 
 console.log(moodyReport.printDebug());
 
-const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter", "southPerimeter", "westPerimeter", "horizontalCenterLine", "verticalCenterLine"]
+const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter", "southPerimeter", "westPerimeter", "horizontalCenter", "verticalCenter"]
 window.addEventListener('DOMContentLoaded', event => {
 
   document.getElementById('fillTestData').addEventListener("click", event => {
@@ -560,10 +560,25 @@ window.addEventListener('DOMContentLoaded', event => {
           const row = document.getElementById(line + "Table").getElementsByTagName("tbody")[0].insertRow()
           row.insertCell().textContent = i + 1
           const readingInput = document.createElement("input")
+          readingInput.inputMode = "decimal"
+          readingInput.required = true
+          readingInput.pattern = "[0-9]*[.,]{0,1}[0-9]*"
           readingInput.id = line + "Table" + i
           row.insertCell().appendChild(readingInput)
         }
-        document.getElementById(line + "Table").style.visibility = "visible";
+        document.getElementById(line + "Table").style.visibility = "visible"
+
+        // Create the table graphics for each line (with the others greyed out).
+        const tableGraphic = document.getElementById("tableGraphic")
+        const specificLineTableGraphic = tableGraphic.cloneNode(true)
+        specificLineTableGraphic.id = line + "TableSvg"
+        specificLineTableGraphic.setAttribute("width", "97%")
+        lines.filter(l => l !== line).forEach(otherLine => {
+          console.log(otherLine + "LineGroup")
+          specificLineTableGraphic.getElementById(otherLine + "LineGroup").setAttribute("stroke", "#A0A0A0")
+          specificLineTableGraphic.getElementById(otherLine + "LineGroup").setAttribute("fill", "#A0A0A0")
+        })
+        document.getElementById(line + "TableSvgContainer").appendChild(specificLineTableGraphic)
       });
     lines.forEach((line, lineIndex) => {
       document.getElementById(line + "Table0").value = "0"
