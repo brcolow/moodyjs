@@ -518,45 +518,14 @@ window.addEventListener('DOMContentLoaded', event => {
       document.getElementById('insideRect').setAttribute("width", surfacePlatePercentWidth - (2 * xInset))
       document.getElementById('insideRect').setAttribute("height", surfacePlatePercentHeight - (2 * yInset))
 
-      document.getElementById('topStartingDiagonalLine').setAttribute("x1", xInset)
-      document.getElementById('topStartingDiagonalLine').setAttribute("y1", yInset)
-      document.getElementById('topStartingDiagonalLine').setAttribute("x2", surfacePlatePercentWidth - xInset)
-      document.getElementById('topStartingDiagonalLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
-
-      document.getElementById('bottomStartingDiagonalLine').setAttribute("x1", xInset)
-      document.getElementById('bottomStartingDiagonalLine').setAttribute("y1", surfacePlatePercentHeight - yInset)
-      document.getElementById('bottomStartingDiagonalLine').setAttribute("x2", surfacePlatePercentWidth - xInset)
-      document.getElementById('bottomStartingDiagonalLine').setAttribute("y2", yInset)
-
-      document.getElementById('northPerimeterLine').setAttribute("x1", xInset)
-      document.getElementById('northPerimeterLine').setAttribute("y1", yInset)
-      document.getElementById('northPerimeterLine').setAttribute("x2", surfacePlatePercentWidth - xInset)
-      document.getElementById('northPerimeterLine').setAttribute("y2", yInset)
-
-      document.getElementById('eastPerimeterLine').setAttribute("x1", surfacePlatePercentWidth - xInset)
-      document.getElementById('eastPerimeterLine').setAttribute("y1", yInset)
-      document.getElementById('eastPerimeterLine').setAttribute("x2", surfacePlatePercentWidth - xInset)
-      document.getElementById('eastPerimeterLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
-
-      document.getElementById('southPerimeterLine').setAttribute("x1", surfacePlatePercentWidth - xInset)
-      document.getElementById('southPerimeterLine').setAttribute("y1", surfacePlatePercentHeight - yInset)
-      document.getElementById('southPerimeterLine').setAttribute("x2", xInset)
-      document.getElementById('southPerimeterLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
-
-      document.getElementById('westPerimeterLine').setAttribute("x1", xInset)
-      document.getElementById('westPerimeterLine').setAttribute("y1", surfacePlatePercentHeight - yInset)
-      document.getElementById('westPerimeterLine').setAttribute("x2", xInset)
-      document.getElementById('westPerimeterLine').setAttribute("y2", yInset)
-
-      document.getElementById('horizontalCenterLine').setAttribute("x1", surfacePlatePercentWidth - xInset)
-      document.getElementById('horizontalCenterLine').setAttribute("y1", surfacePlatePercentHeight / 2)
-      document.getElementById('horizontalCenterLine').setAttribute("x2", xInset)
-      document.getElementById('horizontalCenterLine').setAttribute("y2", surfacePlatePercentHeight / 2)
-
-      document.getElementById('verticalCenterLine').setAttribute("x1", surfacePlatePercentWidth / 2)
-      document.getElementById('verticalCenterLine').setAttribute("y1", yInset)
-      document.getElementById('verticalCenterLine').setAttribute("x2", surfacePlatePercentWidth / 2)
-      document.getElementById('verticalCenterLine').setAttribute("y2", surfacePlatePercentHeight - yInset)
+      document.getElementById('topStartingDiagonalLine').setAttribute("d", `M ${xInset} ${yInset} L ${surfacePlatePercentWidth - xInset} ${surfacePlatePercentHeight - yInset}`)
+      document.getElementById('bottomStartingDiagonalLine').setAttribute("d", `M ${xInset} ${surfacePlatePercentHeight - yInset} L ${surfacePlatePercentWidth - xInset} ${yInset}`)
+      document.getElementById('northPerimeterLine').setAttribute("d", `M ${xInset} ${yInset} L ${surfacePlatePercentWidth - xInset} ${yInset}`)
+      document.getElementById('eastPerimeterLine').setAttribute("d", `M ${surfacePlatePercentWidth - xInset} ${yInset} L ${surfacePlatePercentWidth - xInset} ${surfacePlatePercentHeight - yInset}`)
+      document.getElementById('southPerimeterLine').setAttribute("d", `M ${surfacePlatePercentWidth - xInset} ${surfacePlatePercentHeight - yInset} L ${xInset} ${surfacePlatePercentHeight - yInset}`)
+      document.getElementById('westPerimeterLine').setAttribute("d", `M ${xInset} ${surfacePlatePercentHeight - yInset} L ${xInset} ${yInset}`)
+      document.getElementById('horizontalCenterLine').setAttribute("d", `M ${surfacePlatePercentWidth - xInset} ${surfacePlatePercentHeight / 2} L ${xInset} ${surfacePlatePercentHeight / 2}`)
+      document.getElementById('verticalCenterLine').setAttribute("d", `M ${surfacePlatePercentWidth / 2} ${yInset} L ${surfacePlatePercentWidth / 2} ${surfacePlatePercentHeight - yInset}`)
 
       document.getElementById('plateDiagonal').value = surfacePlate2.surfacePlateDiagonalInches
       document.getElementById('diagonalInset').value = surfacePlate2.suggestedDiagonalInset
