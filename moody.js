@@ -554,6 +554,76 @@ window.addEventListener('DOMContentLoaded', event => {
           readingInput.required = true
           readingInput.pattern = "[0-9]*[.,]{0,1}[0-9]*"
           readingInput.id = line + "Table" + i
+          readingInput.classList.add("readingInput", line + "ReadingInput")
+          readingInput.addEventListener("input", event => {
+            const readingInputs = document.getElementsByClassName("readingInput")
+            if (readingInputs.length > 0) {
+              if (Array.from(readingInputs).filter(readingInput => readingInput.value !== '').length == readingInputs.length) {
+                // All inputs for autocollimator readings are non-empty, so create new MoodyTable with the readings.
+                const moodyReport2 = new MoodyReport(surfacePlate2,
+                  Array.from(document.getElementsByClassName("topStartingDiagonalReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
+                  Array.from(document.getElementsByClassName("bottomStartingDiagonalReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
+                  Array.from(document.getElementsByClassName("northPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
+                  Array.from(document.getElementsByClassName("eastPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
+                  Array.from(document.getElementsByClassName("southPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
+                  Array.from(document.getElementsByClassName("westPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
+                  Array.from(document.getElementsByClassName("horizontalCenterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
+                  Array.from(document.getElementsByClassName("verticalCenterReadingInput")).filter(input => input.readOnly == false).map(input => input.value))
+                  // console.log(moodyReport2.printDebug());
+                  lines.forEach(l => {
+                    Array.from(document.getElementById(l + "Table").getElementsByTagName("tbody")[0].rows).forEach((tableRow, index) => {
+                      const column3Input = document.createElement("input")
+                      column3Input.readOnly = true
+                      column3Input.value = moodyReport2[l + "Table"].angularDisplacements[index]
+                      if (tableRow.cells.length > 2) {
+                        tableRow.deleteCell(2)
+                      }
+                      tableRow.insertCell(2).appendChild(column3Input)
+
+                      const column4Input = document.createElement("input")
+                      column4Input.readOnly = true
+                      column4Input.value = moodyReport2[l + "Table"].sumOfDisplacements[index]
+                      if (tableRow.cells.length > 3) {
+                        tableRow.deleteCell(3)
+                      }
+                      tableRow.insertCell(3).appendChild(column4Input)
+
+                      const column5Input = document.createElement("input")
+                      column5Input.readOnly = true
+                      column5Input.value = moodyReport2[l + "Table"].cumulativeCorrectionFactors[index]
+                      if (tableRow.cells.length > 4) {
+                        tableRow.deleteCell(4)
+                      }
+                      tableRow.insertCell(4).appendChild(column5Input)
+
+                      const column6Input = document.createElement("input")
+                      column6Input.readOnly = true
+                      column6Input.value = moodyReport2[l + "Table"].displacementsFromDatumPlane[index]
+                      if (tableRow.cells.length > 5) {
+                        tableRow.deleteCell(5)
+                      }
+                      tableRow.insertCell(5).appendChild(column6Input)
+
+                      const column7Input = document.createElement("input")
+                      column7Input.readOnly = true
+                      column7Input.value = moodyReport2[l + "Table"].displacementsFromBaseLine[index]
+                      if (tableRow.cells.length > 6) {
+                        tableRow.deleteCell(6)
+                      }
+                      tableRow.insertCell(6).appendChild(column7Input)
+
+                      const column8Input = document.createElement("input")
+                      column8Input.readOnly = true
+                      column8Input.value = moodyReport2[l + "Table"].displacementsFromBaseLineLinear[index]
+                      if (tableRow.cells.length > 7) {
+                        tableRow.deleteCell(7)
+                      }
+                      tableRow.insertCell(7).appendChild(column8Input)
+                    })
+                  });
+              }
+            }
+          })
           row.insertCell().appendChild(readingInput)
         }
         document.getElementById(line + "Table").style.visibility = "visible"
@@ -564,7 +634,6 @@ window.addEventListener('DOMContentLoaded', event => {
         specificLineTableGraphic.id = line + "TableSvg"
         specificLineTableGraphic.setAttribute("width", "97%")
         lines.filter(l => l !== line).forEach(otherLine => {
-          console.log(otherLine + "LineGroup")
           specificLineTableGraphic.getElementById(otherLine + "LineGroup").setAttribute("stroke", "#A0A0A0")
           specificLineTableGraphic.getElementById(otherLine + "LineGroup").setAttribute("fill", "#A0A0A0")
         })
