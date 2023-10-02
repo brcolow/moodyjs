@@ -61,11 +61,11 @@
 </head>
 <body>
 <label for="plateHeight">Surface plate height: </label>
-<input placeholder="48" name="plateHeight" id="plateHeight" maxlength="5"/><br/>
+<input type="number" placeholder="48" name="plateHeight" id="plateHeight" maxlength="5"/><br/>
 <label for="plateWidth">Surface plate width: </label>
-<input placeholder="72" name="plateWidth" id="plateWidth" maxlength="5"/><br/>
+<input type="number" placeholder="72" name="plateWidth" id="plateWidth" maxlength="5"/><br/>
 <label for="reflectorFootSpacing">Reflector foot spacing: </label>
-<input placeholder="4" name="reflectorFootSpacing" id="reflectorFootSpacing" maxlength="5"/><br/>
+<input type="number" placeholder="4" name="reflectorFootSpacing" id="reflectorFootSpacing" maxlength="5"/><br/>
 <button type="button" id="createTables">Create Tables</button>&nbsp;
 <button type="button" id="fillTestData">Fill Test Data</button>
 <br/><br/>
@@ -135,18 +135,19 @@
     </text>
   </g>
 </svg>
+<canvas id="glcanvas" width="640" height="480"></canvas>
 <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
   <div style="flex: 10;">
     <table id="topStartingDiagonalTable" style="visibility: hidden; border: 3px solid var(--l1-color);">
       <thead>
       <tr>
         <th scope="col">Station No.</th>
-        <th scope="col">Autcollimator Readings (0.1" arc)</th>
-        <th scope="col">Angular Displacements (0.1" arc)</th>
-        <th scope="col">Sum of Displacements (0.1" arc)</th>
-        <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-        <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-        <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+        <th scope="col">Autcollimator Readings (1″ arc)</th>
+        <th scope="col">Angular Displacements (1″ arc)</th>
+        <th scope="col">Sum of Displacements (1″ arc)</th>
+        <th scope="col">Cumulative Correction Factor (1″ arc)</th>
+        <th scope="col">Displacement from Datum Plane (1″ arc)</th>
+        <th scope="col">Displacement from Base Plane (1″ arc)</th>
         <th scope="col">Displacement from Base Plane (0.0001")</th>
       </tr>
       </thead>
@@ -162,12 +163,12 @@
       <thead>
       <tr>
         <th scope="col">Station No.</th>
-        <th scope="col">Autcollimator Readings (0.1" arc)</th>
-        <th scope="col">Angular Displacements (0.1" arc)</th>
-        <th scope="col">Sum of Displacements (0.1" arc)</th>
-        <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-        <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-        <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+        <th scope="col">Autcollimator Readings (1″ arc)</th>
+        <th scope="col">Angular Displacements (1″ arc)</th>
+        <th scope="col">Sum of Displacements (1″ arc)</th>
+        <th scope="col">Cumulative Correction Factor (1″ arc)</th>
+        <th scope="col">Displacement from Datum Plane (1″ arc)</th>
+        <th scope="col">Displacement from Base Plane (1″ arc)</th>
         <th scope="col">Displacement from Base Plane (0.0001")</th>
       </tr>
       </thead>
@@ -183,12 +184,12 @@
       <thead>
       <tr>
         <th scope="col">Station No.</th>
-        <th scope="col">Autcollimator Readings (0.1" arc)</th>
-        <th scope="col">Angular Displacements (0.1" arc)</th>
-        <th scope="col">Sum of Displacements (0.1" arc)</th>
-        <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-        <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-        <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+        <th scope="col">Autcollimator Readings (1″ arc)</th>
+        <th scope="col">Angular Displacements (1″ arc)</th>
+        <th scope="col">Sum of Displacements (1″ arc)</th>
+        <th scope="col">Cumulative Correction Factor (1″ arc)</th>
+        <th scope="col">Displacement from Datum Plane (1″ arc)</th>
+        <th scope="col">Displacement from Base Plane (1″ arc)</th>
         <th scope="col">Displacement from Base Plane (0.0001")</th>
       </tr>
       </thead>
@@ -204,12 +205,12 @@
       <thead>
       <tr>
         <th scope="col">Station No.</th>
-        <th scope="col">Autcollimator Readings (0.1" arc)</th>
-        <th scope="col">Angular Displacements (0.1" arc)</th>
-        <th scope="col">Sum of Displacements (0.1" arc)</th>
-        <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-        <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-        <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+        <th scope="col">Autcollimator Readings (1″ arc)</th>
+        <th scope="col">Angular Displacements (1″ arc)</th>
+        <th scope="col">Sum of Displacements (1″ arc)</th>
+        <th scope="col">Cumulative Correction Factor (1″ arc)</th>
+        <th scope="col">Displacement from Datum Plane (1″ arc)</th>
+        <th scope="col">Displacement from Base Plane (1″ arc)</th>
         <th scope="col">Displacement from Base Plane (0.0001")</th>
       </tr>
       </thead>
@@ -225,12 +226,12 @@
       <thead>
       <tr>
         <th scope="col">Station No.</th>
-        <th scope="col">Autcollimator Readings (0.1" arc)</th>
-        <th scope="col">Angular Displacements (0.1" arc)</th>
-        <th scope="col">Sum of Displacements (0.1" arc)</th>
-        <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-        <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-        <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+        <th scope="col">Autcollimator Readings (1″ arc)</th>
+        <th scope="col">Angular Displacements (1″ arc)</th>
+        <th scope="col">Sum of Displacements (1″ arc)</th>
+        <th scope="col">Cumulative Correction Factor (1″ arc)</th>
+        <th scope="col">Displacement from Datum Plane (1″ arc)</th>
+        <th scope="col">Displacement from Base Plane (1″ arc)</th>
         <th scope="col">Displacement from Base Plane (0.0001")</th>
       </tr>
       </thead>
@@ -246,12 +247,12 @@
       <thead>
       <tr>
         <th scope="col">Station No.</th>
-        <th scope="col">Autcollimator Readings (0.1" arc)</th>
-        <th scope="col">Angular Displacements (0.1" arc)</th>
-        <th scope="col">Sum of Displacements (0.1" arc)</th>
-        <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-        <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-        <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+        <th scope="col">Autcollimator Readings (1″ arc)</th>
+        <th scope="col">Angular Displacements (1″ arc)</th>
+        <th scope="col">Sum of Displacements (1″ arc)</th>
+        <th scope="col">Cumulative Correction Factor (1″ arc)</th>
+        <th scope="col">Displacement from Datum Plane (1″ arc)</th>
+        <th scope="col">Displacement from Base Plane (1″ arc)</th>
         <th scope="col">Displacement from Base Plane (0.0001")</th>
       </tr>
       </thead>
@@ -267,12 +268,12 @@
       <thead>
       <tr>
         <th scope="col">Station No.</th>
-        <th scope="col">Autcollimator Readings (0.1" arc)</th>
-        <th scope="col">Angular Displacements (0.1" arc)</th>
-        <th scope="col">Sum of Displacements (0.1" arc)</th>
-        <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-        <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-        <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+        <th scope="col">Autcollimator Readings (1″ arc)</th>
+        <th scope="col">Angular Displacements (1″ arc)</th>
+        <th scope="col">Sum of Displacements (1″ arc)</th>
+        <th scope="col">Cumulative Correction Factor (1″ arc)</th>
+        <th scope="col">Displacement from Datum Plane (1″ arc)</th>
+        <th scope="col">Displacement from Base Plane (1″ arc)</th>
         <th scope="col">Displacement from Base Plane (0.0001")</th>
       </tr>
       </thead>
@@ -288,12 +289,12 @@
       <thead>
       <tr>
         <th scope="col">Station No.</th>
-        <th scope="col">Autcollimator Readings (0.1" arc)</th>
-        <th scope="col">Angular Displacements (0.1" arc)</th>
-        <th scope="col">Sum of Displacements (0.1" arc)</th>
-        <th scope="col">Cumulative Correction Factor (0.1" arc)</th>
-        <th scope="col">Displacement from Datum Plane (0.1" arc)</th>
-        <th scope="col">Displacement from Base Plane (0.1" arc)</th>
+        <th scope="col">Autcollimator Readings (1″ arc)</th>
+        <th scope="col">Angular Displacements (1″ arc)</th>
+        <th scope="col">Sum of Displacements (1″ arc)</th>
+        <th scope="col">Cumulative Correction Factor (1″ arc)</th>
+        <th scope="col">Displacement from Datum Plane (1″ arc)</th>
+        <th scope="col">Displacement from Base Plane (1″ arc)</th>
         <th scope="col">Displacement from Base Plane (0.0001")</th>
       </tr>
       </thead>
