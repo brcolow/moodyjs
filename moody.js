@@ -872,6 +872,10 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, objRotationMatr
     offset += vertexCount
     vertexCount = moodyReport.verticalCenterTable.vertices().flat(1).length / 3
     gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+
+    offset += vertexCount
+    vertexCount = buffers.triangleVertices.length
+    gl.drawArrays(gl.TRIANGLES, offset, vertexCount / 3)
   }
 
 }
@@ -901,19 +905,33 @@ const fsSource = `
 
 function initBuffers(gl, moodyReport, zMultiplier) {
   const positionBuffer = initPositionBuffer(gl, moodyReport, zMultiplier)
-  const colorBuffer = initColorBuffer(gl, moodyReport)
+  const lineColorBuffer = initColorBuffer(gl, moodyReport, positionBuffer.triangleVertices)
 
   return {
-    position: positionBuffer.buffer,
-    positions: positionBuffer.positions,
-    color: colorBuffer,
+    positionBuffer: positionBuffer.positionBuffer,
+    linePositions: positionBuffer.linePositions,
+    triangleVertices: positionBuffer.triangleVertices,
+    lineColors: lineColorBuffer,
   }
 }
 
 function initPositionBuffer(gl, moodyReport, zMultiplier) {
   const positionBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-  const positions = new Float32Array(moodyReport.topStartingDiagonalTable.vertices(zMultiplier).flat(1)
+
+  const vertices = moodyReport.topStartingDiagonalTable.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
+   .concat(moodyReport.bottomStartingDiagonalTable.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1))
+   .concat(moodyReport.northPerimeterTable.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1))
+   .concat(moodyReport.eastPerimeterTable.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1))
+   .concat(moodyReport.southPerimeterTable.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1))
+   .concat(moodyReport.westPerimeterTable.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1))
+   .concat(moodyReport.horizontalCenterTable.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1))
+   .concat(moodyReport.verticalCenterTable.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1))
+
+  const triangulation = bowyerWatson(vertices)
+
+  const triangulatedVertices = triangulation.map(triangle => [triangle.v0.x, triangle.v0.y, triangle.v0.z, triangle.v1.x, triangle.v1.y, triangle.v1.z, triangle.v2.x, triangle.v2.y, triangle.v2.z]).flat(1)
+  const linePositions = new Float32Array(moodyReport.topStartingDiagonalTable.vertices(zMultiplier).flat(1)
     .concat(moodyReport.bottomStartingDiagonalTable.vertices(zMultiplier).flat(1))
     .concat(moodyReport.northPerimeterTable.vertices(zMultiplier).flat(1))
     .concat(moodyReport.eastPerimeterTable.vertices(zMultiplier).flat(1))
@@ -921,14 +939,16 @@ function initPositionBuffer(gl, moodyReport, zMultiplier) {
     .concat(moodyReport.westPerimeterTable.vertices(zMultiplier).flat(1))
     .concat(moodyReport.horizontalCenterTable.vertices(zMultiplier).flat(1))
     .concat(moodyReport.verticalCenterTable.vertices(zMultiplier).flat(1))
-  )
+    .concat(triangulatedVertices))
 
-  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
-  return { buffer: positionBuffer, positions: positions }
+  console.log(linePositions)
+  gl.bufferData(gl.ARRAY_BUFFER, linePositions, gl.STATIC_DRAW)
+
+  return { positionBuffer: positionBuffer, linePositions: linePositions, triangleVertices: triangulatedVertices}
 }
 
-function initColorBuffer(gl, moodyReport) {
-  const colors = new Array(moodyReport.topStartingDiagonalTable.numStations).fill([0.9568627450980393, 0.2627450980392157, 0.21176470588235294, 1.0]).flat(1)
+function initColorBuffer(gl, moodyReport, triangleVertices) {
+  const lineColors = new Array(moodyReport.topStartingDiagonalTable.numStations).fill([0.9568627450980393, 0.2627450980392157, 0.21176470588235294, 1.0]).flat(1)
   .concat(new Array(moodyReport.bottomStartingDiagonalTable.numStations).fill([1.0, 0.9254901960784314, 0.23137254901960784, 1.0]).flat(1))
   .concat(new Array(moodyReport.northPerimeterTable.numStations).fill([0.2980392156862745, 0.6862745098039216, 0.3137254901960784, 1.0]).flat(1))
   .concat(new Array(moodyReport.eastPerimeterTable.numStations).fill([1.0, 0.4980392156862745, 0.3137254901960784, 1.0]).flat(1))
@@ -936,12 +956,13 @@ function initColorBuffer(gl, moodyReport) {
   .concat(new Array(moodyReport.westPerimeterTable.numStations).fill([1.0, 0.5019607843137255, 0.6745098039215687, 1.0]).flat(1))
   .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.7490196078431372, 0.8470588235294118, 1.0]).flat(1))
   .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
+  .concat(new Array(triangleVertices.length).fill([1.0, 1.0, 1.0, 1.0]).flat(1)) // Add all white for the triangulated mesh (for now)
 
-  const colorBuffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
+  const lineColorBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, lineColorBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lineColors), gl.STATIC_DRAW)
 
-  return colorBuffer
+  return lineColorBuffer
 }
 
 // Tell WebGL how to pull out the positions from the position
@@ -953,7 +974,7 @@ function setPositionAttribute(gl, buffers, programInfo) {
   const stride = 0 // how many bytes to get from one set of values to the next
   // 0 = use type and numComponents above
   const offset = 0 // how many bytes inside the buffer to start from
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position)
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positionBuffer)
   gl.vertexAttribPointer(
     programInfo.attribLocations.vertexPosition,
     numComponents,
@@ -970,7 +991,7 @@ function setColorAttribute(gl, buffers, programInfo) {
   const normalize = false
   const stride = 0
   const offset = 0
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color)
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.lineColors)
   gl.vertexAttribPointer(
     programInfo.attribLocations.vertexColor,
     numComponents,
@@ -1013,6 +1034,179 @@ function loadShader(gl, type, source) {
 
   return shader
 }
+
+// Delaunay Triangulation from: https://github.com/msavela/delaunay/
+class Vertex {
+  constructor(x, y, z) {
+    this.x = x
+    this.y = y
+    this.z = z
+  }
+
+  // We just use the 2D distance. The z is saved for later use - but it is not used in the triangulation.
+  distanceTo(otherVertex) {
+    return Math.sqrt((this.x - otherVertex.x) ** 2 + (this.y - otherVertex.y) ** 2)
+  }
+
+  equals(vertex) {
+    return this.x === vertex.x && this.y == vertex.y;
+  }
+}
+
+class Edge {
+  constructor(v0, v1) {
+    this.v0 = v0
+    this.v1 = v1
+  }
+
+  equals(edge) {
+    return (this.v0.equals(edge.v0) && this.v1.equals(edge.v1)) ||
+		  (this.v0.equals(edge.v1) && this.v1.equals(edge.v0))
+  }
+}
+
+class Triangle {
+  constructor(v0, v1, v2) {
+    this.v0 = v0
+    this.v1 = v1
+    this.v2 = v2
+    this.calcCircumcircle()
+  }
+
+  calcCircumcircle() {
+    // Reference: http://www.faqs.org/faqs/graphics/algorithms-faq/
+    // Subject 1.04: How do I generate a circle through three points?
+    const A = this.v1.x - this.v0.x
+    const B = this.v1.y - this.v0.y
+    const C = this.v2.x - this.v0.x
+    const D = this.v2.y - this.v0.y
+
+    const E = A * (this.v0.x + this.v1.x) + B * (this.v0.y + this.v1.y)
+    const F = C * (this.v0.x + this.v2.x) + D * (this.v0.y + this.v2.y)
+
+    const G = 2.0 * (A * (this.v2.y - this.v1.y) - B * (this.v2.x - this.v1.x))
+
+    let dx, dy
+
+    // Collinear points, get extremes and use midpoint as center
+    if (Math.round(Math.abs(G)) == 0) {
+      const minx = Math.min(this.v0.x, this.v1.x, this.v2.x)
+      const miny = Math.min(this.v0.y, this.v1.y, this.v2.y)
+      const maxx = Math.max(this.v0.x, this.v1.x, this.v2.x)
+      const maxy = Math.max(this.v0.y, this.v1.y, this.v2.y)
+
+      this.center = new Vertex((minx + maxx) / 2, (miny + maxy) / 2, 0)
+
+      dx = this.center.x - minx
+      dy = this.center.y - miny
+    } else {
+      const cx = (D * E - B * F) / G
+      const cy = (A * F - C * E) / G
+
+      this.center = new Vertex(cx, cy, 0)
+
+      dx = this.center.x - this.v0.x
+      dy = this.center.y - this.v0.y
+    }
+    this.radius = Math.sqrt(dx * dx + dy * dy)
+  }
+
+  inCircumcircle(v) {
+    const dx = this.center.x - v.x
+    const dy = this.center.y - v.y
+    return Math.sqrt(dx * dx + dy * dy) <= this.radius
+  }
+}
+
+function getSuperTriangle(vertices) {
+  let minx = Infinity
+  let miny = Infinity
+
+  let maxx = -Infinity
+  let maxy = -Infinity
+  vertices.forEach(vertex => {
+    minx = Math.min(minx, vertex.x)
+    miny = Math.min(minx, vertex.y)
+    maxx = Math.max(maxx, vertex.x)
+    maxy = Math.max(maxx, vertex.y)
+  })
+
+  const dx = (maxx - minx) * 10
+  const dy = (maxy - miny) * 10
+
+  const v0 = new Vertex(minx - dx, miny - dy * 3, 0)
+  const v1 = new Vertex(minx - dx, maxy + dy, 0)
+  const v2 = new Vertex(maxx + dx * 3, maxy + dy, 0)
+
+  return new Triangle(v0, v1, v2)
+}
+
+function addVertex(vertex, triangles) {
+  let edges = []
+
+  // Remove triangles with circumcircles containing the vertex
+  triangles = triangles.filter(triangle => {
+    if (triangle.inCircumcircle(vertex)) {
+      edges.push(new Edge(triangle.v0, triangle.v1))
+      edges.push(new Edge(triangle.v1, triangle.v2))
+      edges.push(new Edge(triangle.v2, triangle.v0))
+      return false
+    }
+    return true
+  });
+
+  // Get unique edges
+  edges = uniqueEdges(edges)
+
+  // Create new triangles from the unique edges and new vertex
+  edges.forEach(edge => {
+    triangles.push(new Triangle(edge.v0, edge.v1, vertex))
+  });
+
+  return triangles
+}
+
+function uniqueEdges(edges) {
+  const uniqueEdges = []
+  for (let i=0; i < edges.length; ++i) {
+    let isUnique = true
+
+    // See if edge is unique
+    for (let j = 0; j < edges.length; ++j) {
+      if (i != j && edges[i].equals(edges[j])) {
+        isUnique = false
+        break;
+      }
+    }
+
+    // Edge is unique, add to unique edges array
+    isUnique && uniqueEdges.push(edges[i])
+  }
+
+  return uniqueEdges
+}
+
+function bowyerWatson(vertices) {
+  // Create bounding 'super' triangle
+  let st = getSuperTriangle(vertices)
+  // Initialize triangles while adding bounding triangle
+  let triangles = [st]
+
+  // Triangulate each vertex
+  vertices.forEach(vertex => {
+    triangles = addVertex(vertex, triangles)
+  });
+
+  // Remove triangles that share edges with super triangle
+  triangles = triangles.filter(triangle => {
+    return !(triangle.v0 == st.v0 || triangle.v0 == st.v1 || triangle.v0 == st.v2 ||
+      triangle.v1 == st.v0 || triangle.v1 == st.v1 || triangle.v1 == st.v2 ||
+      triangle.v2 == st.v0 || triangle.v2 == st.v1 || triangle.v2 == st.v2)
+  });
+
+  return triangles
+}
+
 
 // From glMatrix v4.
 // https://github.com/toji/gl-matrix/tree/glmatrix-next
