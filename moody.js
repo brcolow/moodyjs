@@ -166,7 +166,7 @@ class DiagonalTable extends Table {
     // Instead of starting at the middle and then iterating up and down, we proceed unidirectionally from first index.
     const correctionFactor = -this.sumOfDisplacements[this.numStations - 1] / (this.numStations - 1)
     // We slice the array because we don't want to count the first dummy 0 measurement that gets added.
-    return this.sumOfDisplacements.map((_, i, arr) => roundTo((correctionFactor * i +
+    return this.sumOfDisplacements.map((_, i) => roundTo((correctionFactor * i +
       (0.5 * this.sumOfDisplacements[this.numStations - 1] - this.midStationValue(this.sumOfDisplacements.slice(1)))), 2))
   }
 
@@ -278,6 +278,8 @@ class CenterTable extends Table {
     } else if (this.lineSegment.start == Direction.North) {
       // Vertical Center Line
       return this.displacementsFromDatumPlane
+    } else {
+      throw new Error('Center line segment did not have start direction of East or West but was: ' + this.lineSegment.start)
     }
   }
 
@@ -501,13 +503,13 @@ console.log(moodyReport.printDebug())
 
 const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter", "southPerimeter",
   "westPerimeter", "horizontalCenter", "verticalCenter"]
-window.addEventListener('DOMContentLoaded', event => {
+window.addEventListener('DOMContentLoaded', () => {
   // FIXME: This is just for testing - so we don't have to type in the values each time.
   document.getElementById("plateHeight").value = moodySurfacePlateHeightInches
   document.getElementById("plateWidth").value = moodySurfacePlateWidthInches
   document.getElementById("reflectorFootSpacing").value = moodyReflectorFootSpacingInches
 
-  document.getElementById('fillTestData').addEventListener("click", event => {
+  document.getElementById('fillTestData').addEventListener("click", () => {
     lines.forEach((line, lineIndex) => {
       moodyData[lineIndex].forEach((tableEntry, index) => {
           document.getElementById(line + "Table" + (index + 1)).value = tableEntry
@@ -517,7 +519,7 @@ window.addEventListener('DOMContentLoaded', event => {
     document.getElementsByClassName("readingInput")[0].dispatchEvent(new Event('input', { bubbles: true }))
   })
 
-  document.getElementById("createTables").addEventListener("click", event => {
+  document.getElementById("createTables").addEventListener("click", () => {
     createTables()
   })
 
@@ -724,8 +726,6 @@ function refreshTables(event, lines, surfacePlate) {
   }
 }
 
-let tableRotation = 0.0
-let deltaTime = 0
 let mouseDown = false
 let lastMouseX = null
 let lastMouseY = null
@@ -751,8 +751,8 @@ function initialize3DTableGraphic(moodyReport, objRotationMatrix) {
     lastMouseY = event.clientY
   }
 
-  document.onmouseup = event => { mouseDown = false }
-  document.onmousemove = event => {
+  document.onmouseup = () => { mouseDown = false }
+  document.onmousemove = () => {
     if (!mouseDown) {
        return
     }
@@ -794,14 +794,8 @@ function initialize3DTableGraphic(moodyReport, objRotationMatrix) {
   const buffers = initBuffers(gl, moodyReport, zMultiplier)
 
   // Draw the scene repeatedly
-  let then = 0
-  function render(now) {
-    now *= 0.001 // convert to seconds
-    deltaTime = now - then
-    then = now
-
-    drawTableSurface(moodyReport, gl, programInfo, buffers, objRotationMatrix, zMultiplier)
-    tableRotation += deltaTime
+  function render() {
+    drawTableSurface(moodyReport, gl, programInfo, buffers, objRotationMatrix)
 
     requestAnimationFrame(render)
   }
@@ -809,7 +803,7 @@ function initialize3DTableGraphic(moodyReport, objRotationMatrix) {
 }
 
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
-function drawTableSurface(moodyReport, gl, programInfo, buffers, objRotationMatrix, zMultiplier) {
+function drawTableSurface(moodyReport, gl, programInfo, buffers, objRotationMatrix) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clearDepth(1.0)
   gl.enable(gl.DEPTH_TEST)
@@ -960,12 +954,12 @@ function initColorBuffer(gl, moodyReport, triangleVertices) {
   const normalizedTriangleZValues = triangleZValues.map(value => ((value - minZ) / (maxZ - minZ)))
   const colorMappedZValues = normalizedTriangleZValues.map(value => interpolate(turboColormapData, value))
   const lineColors = new Array(moodyReport.topStartingDiagonalTable.numStations).fill([0.9568627450980393, 0.2627450980392157, 0.21176470588235294, 1.0]).flat(1)
-  .concat(new Array(moodyReport.bottomStartingDiagonalTable.numStations).fill([1.0, 0.9254901960784314, 0.23137254901960784, 1.0]).flat(1))
+  .concat(new Array(moodyReport.bottomStartingDiagonalTable.numStations).fill([1.0, 0.9254901960784314, 0.2313725490196078, 1.0]).flat(1))
   .concat(new Array(moodyReport.northPerimeterTable.numStations).fill([0.2980392156862745, 0.6862745098039216, 0.3137254901960784, 1.0]).flat(1))
   .concat(new Array(moodyReport.eastPerimeterTable.numStations).fill([1.0, 0.4980392156862745, 0.3137254901960784, 1.0]).flat(1))
   .concat(new Array(moodyReport.southPerimeterTable.numStations).fill([0.12941176470588237, 0.5882352941176471, 0.9529411764705882, 1.0]).flat(1))
   .concat(new Array(moodyReport.westPerimeterTable.numStations).fill([1.0, 0.5019607843137255, 0.6745098039215687, 1.0]).flat(1))
-  .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.7490196078431372, 0.8470588235294118, 1.0]).flat(1))
+  .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.749019607843137, 0.8470588235294118, 1.0]).flat(1))
   .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
   .concat(colorMappedZValues.flat(1)) // Add color mapped colors for the triangles z-value.
 
@@ -1083,7 +1077,7 @@ class Edge {
 
   equals(edge) {
     return (this.v0.equals(edge.v0) && this.v1.equals(edge.v1)) ||
-		  (this.v0.equals(edge.v1) && this.v1.equals(edge.v0))
+      (this.v0.equals(edge.v1) && this.v1.equals(edge.v0))
   }
 }
 
