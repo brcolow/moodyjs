@@ -91,7 +91,6 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 * Add a way to show a semi-transparent plane that corresponds to grade "AA", "A", and "B" flatness. tolerance(AA) =  (40 + diagonal squared/25) x .000001″, A = tolerance(AA) * 2, B=tolerance(AA) * 4
 * Show a scale for the z-axis height values.
 * Add a thickness for the table slab (add manufacturer's label).
-* Show the total deviation of the plate.
 * Allow for "importing" a number set (maybe from a CSV file or a textarea with a simple format).
 
 ## Thanks To

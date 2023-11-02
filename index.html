@@ -66,7 +66,7 @@
 <label for="plateWidth">Surface plate width: </label>
 <input type="number" placeholder="72" name="plateWidth" id="plateWidth" maxlength="5"/><br/>
 <label for="reflectorFootSpacing">Reflector foot spacing: </label>
-<input type="number" placeholder="4" name="reflectorFootSpacing" id="reflectorFootSpacing" maxlength="5"/><br/>
+<input type="number" placeholder="4" name="reflectorFootSpacing" id="reflectorFootSpacing" maxlength="5"/><br/><br/>
 <button type="button" id="createTables">Create Tables</button>&nbsp;
 <button type="button" id="fillTestData">Fill Test Data</button>
 <br/><br/>
@@ -79,24 +79,25 @@
 <label for="numVerticalStations">Number of Vertical Stations: </label>
 <input name="numVerticalStations" id="numVerticalStations" readonly/><br/>
 <label for="numDiagonalStations">Number of Diagonal Stations: </label>
-<input name="numDiagonalStations" id="numDiagonalStations" readonly/><br/>
-ASME Overall Flatness Requirements:
+<input name="numDiagonalStations" id="numDiagonalStations" readonly/><br/><br/>
+ASME Overall Flatness Requirements:<br/>
 <label for="gradeAA">Grade AA (µinch): </label>
 <input name="gradeAA" id="gradeAA" readonly/><br/>
 <label for="gradeA">Grade A (µinch): </label>
 <input name="gradeA" id="gradeA" readonly/><br/>
 <label for="gradeB">Grade B (µinch): </label>
-<input name="gradeB" id="gradeB" readonly/><br/>
-ISO Overall Flatness Requirements:
+<input name="gradeB" id="gradeB" readonly/><br/><br/>
+ISO Overall Flatness Requirements:<br/>
 <label for="grade0">Grade 0 (µinch): </label>
 <input name="grade0" id="grade0" readonly/><br/>
 <label for="grade1">Grade 1 (µinch): </label>
 <input name="grade1" id="grade1" readonly/><br/>
 <label for="grade2">Grade 2 (µinch): </label>
 <input name="grade2" id="grade2" readonly/><br/>
+<label for="grade3">Grade 3 (µinch): </label>
+<input name="grade3" id="grade3" readonly/><br/><br/>
 <label for="overallFlatness">Overall flatness (µinch): </label>
 <input name="overallFlatness" id="overallFlatness" readonly/><br/>
-<br/>
 <svg id="tableGraphic" preserveAspectRatio="xMaxYMid meet" style="visibility: hidden; max-width: 500px">
   <rect id="outsideRect" x="0" y="0" fill="white" stroke="black" stroke-width="0.01em"/>
   <rect id="insideRect" fill="white" stroke="black" stroke-width="0.01em"/>

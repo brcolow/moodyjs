@@ -541,6 +541,32 @@ function createTables() {
   document.getElementById('numHorizontalStations').value = surfacePlate.suggestedNumberOfHorizontalStations
   document.getElementById('numVerticalStations').value = surfacePlate.suggestedNumberOfVerticalStations
   document.getElementById('numDiagonalStations').value = surfacePlate.suggestedNumberOfDiagonalStations
+  const plateDiagonalFull = Math.sqrt(((surfacePlate.surfacePlateHeightInches * surfacePlate.surfacePlateHeightInches) + (surfacePlate.surfacePlateWidthInches * surfacePlate.surfacePlateWidthInches)))
+  const gradeAAFlatnessReq = .04 * (plateDiagonalFull * plateDiagonalFull) + 40
+  document.getElementById('gradeAA').value = roundTo(gradeAAFlatnessReq, 2)
+  document.getElementById('gradeA').value = roundTo(gradeAAFlatnessReq * 2, 2)
+  document.getElementById('gradeB').value = roundTo(gradeAAFlatnessReq * 4, 2)
+  const plateDiagonalFullMicrometers = plateDiagonalFull * 25.4
+  const isoGrade0FlatnessReq = 0.003 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 2.5
+  document.getElementById('grade0').value = roundTo(isoGrade0FlatnessReq * 39.37, 2) // Convert from micrometers to microinches
+  const isoGrade1FlatnessReq = 0.006 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 5
+  document.getElementById('grade1').value = roundTo(isoGrade1FlatnessReq * 39.37, 2) // Convert from micrometers to microinches
+  const isoGrade2FlatnessReq = 0.012 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 10
+  document.getElementById('grade2').value = roundTo(isoGrade2FlatnessReq * 39.37, 2) // Convert from micrometers to microinches
+  const isoGrade3FlatnessReq = 0.024 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 20
+  document.getElementById('grade3').value = roundTo(isoGrade3FlatnessReq * 39.37, 2) // Convert from micrometers to microinches
+  const flatnessInputs = [document.getElementById('gradeAA'), document.getElementById('gradeA'), document.getElementById('gradeB'),
+    document.getElementById('grade0'), document.getElementById('grade1'), document.getElementById('grade2'), document.getElementById('grade3')]
+  document.getElementById("overallFlatness").addEventListener("input", event => {
+   for (const flatnessInput of flatnessInputs) {
+     console.log(flatnessInput.value)
+     if (Number(event.target.value) <= Number(flatnessInput.value)) {
+       flatnessInput.style.background = '#C6EFCE'
+     } else {
+       flatnessInput.style.background = '#FFC7CE'
+     }
+   }
+  })
 
   createTableGraphic(surfacePlate)
 
@@ -650,12 +676,14 @@ function refreshTables(event, lines, surfacePlate) {
         Array.from(document.getElementsByClassName("horizontalCenterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
         Array.from(document.getElementsByClassName("verticalCenterReadingInput")).filter(input => input.readOnly == false).map(input => input.value))
 
+      const allZPositions = moodyReport.vertices().map(point => point[2])
       const overallFlatness = (Math.max(...allZPositions) - Math.min(...allZPositions)) * 1000000 // Convert inches to microinches.
       document.getElementById("overallFlatness").value = overallFlatness
+      document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }));
       /*
       const allXPositions = moodyReport.vertices().map(point => point[0])
       const allYPositions = moodyReport.vertices().map(point => point[1])
-      const allZPositions = moodyReport.vertices().map(point => point[2])
+
       console.log(allXPositions)
       console.log(allYPositions)
       console.log("EXCEL CSV:\r\n")
@@ -663,8 +691,8 @@ function refreshTables(event, lines, surfacePlate) {
         console.log(allXPositions[i] + ", " + allYPositions[i])
       }
       */
-      let objRotationMatrix = Mat4.create()
-      initialize3DTableGraphic(moodyReport, objRotationMatrix)
+      let tableModelMatrix = Mat4.create()
+      initialize3DTableGraphic(moodyReport, tableModelMatrix)
 
       // console.log(moodyReport.printDebug())
       lines.forEach(l => {
@@ -725,8 +753,9 @@ function refreshTables(event, lines, surfacePlate) {
 let mouseDown = false
 let lastMouseX = null
 let lastMouseY = null
+const keyMap = []
 
-function initialize3DTableGraphic(moodyReport, objRotationMatrix) {
+function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   const canvas = document.getElementById("glcanvas")
   // const gl = canvas.getContext("webgl")
   const gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl"))
@@ -749,25 +778,64 @@ function initialize3DTableGraphic(moodyReport, objRotationMatrix) {
 
   document.onmouseup = () => { mouseDown = false }
   document.onmousemove = () => {
+    // FIXME: The mouse rotation is really annoying - this is not the way.
     if (!mouseDown) {
        return
     }
-    var newX = event.clientX
-    var newY = event.clientY
-
-    var deltaX = newX - lastMouseX
-    var newRotationMatrix = Mat4.create()
+    const deltaX = event.clientX - lastMouseX
+    let newRotationMatrix = Mat4.create()
     // rotate around Y axis
     newRotationMatrix.rotate((deltaX / 5) * (Math.PI / 180), [0, -1, 0])
 
-    var deltaY = newY - lastMouseY
+    const deltaY = event.clientY - lastMouseY
     // rotate around the X axis
     newRotationMatrix.rotate((deltaY / 5) * (Math.PI / 180), [-1, 0, 0])
 
-    objRotationMatrix.multiply(newRotationMatrix)
+    tableModelMatrix.multiply(newRotationMatrix)
 
-    lastMouseX = newX
-    lastMouseY = newY
+    lastMouseX = event.clientX
+    lastMouseY = event.clientY
+  }
+
+  canvas.onwheel = event => {
+      event.preventDefault()
+      let direction = event.deltaY < 0 ? 1 : -1;
+      let zoomFactor = 1 + direction * 0.1;
+      let scaleMatrix = Mat4.create()
+      scaleMatrix.scale([zoomFactor, zoomFactor])
+      tableModelMatrix.multiply(scaleMatrix)
+  }
+
+  // Pretty weird hack that allows the canvas to be focused and thus receive keydown events.
+  canvas.tabIndex = 1
+
+  canvas.onkeyup = event => {
+    keyMap[event.key] = false
+  }
+
+  canvas.onkeydown = event => {
+    event.preventDefault()
+    keyMap[event.key] = true
+    const translateMatrix = Mat4.create()
+    if (keyMap['ArrowUp'] === true) {
+      translateMatrix.translate([0, -1.0, 0.0])
+    }
+    if (keyMap['ArrowDown'] === true) {
+      translateMatrix.translate([0, 1.0, 0.0])
+    }
+    if (keyMap['ArrowRight'] === true) {
+      translateMatrix.translate([-1.0, 0.0, 0.0])
+    }
+    if (keyMap['ArrowLeft'] === true) {
+      translateMatrix.translate([1.0, 0.0, 0.0])
+    }
+    if (keyMap['w'] === true) {
+      translateMatrix.translate([0.0, 0.0, -1.0])
+    }
+    if (keyMap['s'] === true) {
+      translateMatrix.translate([0.0, 0.0, 1.0])
+    }
+    tableModelMatrix.multiply(translateMatrix)
   }
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
@@ -790,14 +858,14 @@ function initialize3DTableGraphic(moodyReport, objRotationMatrix) {
   const buffers = initBuffers(gl, moodyReport, zMultiplier)
 
   function render() {
-    drawTableSurface(moodyReport, gl, programInfo, buffers, objRotationMatrix)
+    drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix)
     requestAnimationFrame(render)
   }
   requestAnimationFrame(render)
 }
 
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
-function drawTableSurface(moodyReport, gl, programInfo, buffers, objRotationMatrix) {
+function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clearDepth(1.0)
   gl.enable(gl.DEPTH_TEST)
@@ -814,10 +882,10 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, objRotationMatr
   projectionMatrix.perspective(fieldOfView, aspect, zNear, zFar)
 
   const modelMatrix = Mat4.create()
-  modelMatrix.multiply(objRotationMatrix)
+  modelMatrix.multiply(tableModelMatrix)
 
   const viewMatrix = Mat4.create()
-  viewMatrix.translate([-30.0, -30.0, -70.0])
+  viewMatrix.translate([-35.0, -24.0, -70.0])
 
   setPositionAttribute(gl, buffers, programInfo)
   setColorAttribute(gl, buffers, programInfo)
@@ -1224,6 +1292,28 @@ class Mat4 extends Float32Array {
   // Creates a new identity 4x4 Matrix.
   static create() {
     return new Mat4()
+  }
+
+  scale(v) {
+    return Mat4.scale(this, this, v)
+  }
+
+  static scale(out, a, v) {
+    const x = v[0];
+    const y = v[1];
+
+    out[0] = x * a[0];
+    out[1] = x * a[1];
+    out[2] = x * a[2];
+
+    out[3] = y * a[3];
+    out[4] = y * a[4];
+    out[5] = y * a[5];
+
+    out[6] = a[6];
+    out[7] = a[7];
+    out[8] = a[8];
+    return out;
   }
 
   multiply(b) {
