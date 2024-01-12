@@ -679,7 +679,7 @@ function refreshTables(event, lines, surfacePlate) {
       const allZPositions = moodyReport.vertices().map(point => point[2])
       const overallFlatness = (Math.max(...allZPositions) - Math.min(...allZPositions)) * 1000000 // Convert inches to microinches.
       document.getElementById("overallFlatness").value = overallFlatness
-      document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }));
+      document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }))
       /*
       const allXPositions = moodyReport.vertices().map(point => point[0])
       const allYPositions = moodyReport.vertices().map(point => point[1])
@@ -778,7 +778,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
 
   document.onmouseup = () => { mouseDown = false }
   document.onmousemove = () => {
-    // FIXME: The mouse rotation is really annoying - this is not the way.
+    // FIXME: The mouse rotation is really annoying - this is not the way. We need a better "trackball" rotation.
     if (!mouseDown) {
        return
     }
@@ -798,12 +798,13 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   }
 
   canvas.onwheel = event => {
-      event.preventDefault()
-      let direction = event.deltaY < 0 ? 1 : -1;
-      let zoomFactor = 1 + direction * 0.1;
-      let scaleMatrix = Mat4.create()
-      scaleMatrix.scale([zoomFactor, zoomFactor])
-      tableModelMatrix.multiply(scaleMatrix)
+    // FIXME: Zooming is nice, but we want the table to remain "centered" - current behavior is counter-intuitive.
+    event.preventDefault()
+    const direction = event.deltaY < 0 ? 1 : -1
+    const zoomFactor = 1 + direction * 0.1
+    const scaleMatrix = Mat4.create()
+    scaleMatrix.scale([zoomFactor, zoomFactor])
+    tableModelMatrix.multiply(scaleMatrix)
   }
 
   // Pretty weird hack that allows the canvas to be focused and thus receive keydown events.
@@ -1299,21 +1300,21 @@ class Mat4 extends Float32Array {
   }
 
   static scale(out, a, v) {
-    const x = v[0];
-    const y = v[1];
+    const x = v[0]
+    const y = v[1]
 
-    out[0] = x * a[0];
-    out[1] = x * a[1];
-    out[2] = x * a[2];
+    out[0] = x * a[0]
+    out[1] = x * a[1]
+    out[2] = x * a[2]
 
-    out[3] = y * a[3];
-    out[4] = y * a[4];
-    out[5] = y * a[5];
+    out[3] = y * a[3]
+    out[4] = y * a[4]
+    out[5] = y * a[5]
 
-    out[6] = a[6];
-    out[7] = a[7];
-    out[8] = a[8];
-    return out;
+    out[6] = a[6]
+    out[7] = a[7]
+    out[8] = a[8]
+    return out
   }
 
   multiply(b) {
