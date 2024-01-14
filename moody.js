@@ -816,7 +816,6 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
 
       let newRotationMatrix = Mat4.create()
       const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
-      console.log(vertices)
       const minX = Math.min(...vertices.map(vertex => vertex.x))
       const maxX = Math.max(...vertices.map(vertex => vertex.x))
       const minY = Math.min(...vertices.map(vertex => vertex.y))
