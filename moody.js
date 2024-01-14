@@ -822,7 +822,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       const maxY = Math.max(...vertices.map(vertex => vertex.y))
       const minZ = Math.min(...vertices.map(vertex => vertex.z))
       const maxZ = Math.max(...vertices.map(vertex => vertex.z))
-      // Axis is a unit vector from the origin (top-left corner of surface plate) in the direction the mouse travelled.
+      // Axis is a unit vector from the origin (bottom-left corner of surface plate) in the direction the mouse travelled.
       // We need it to be a unit vector from the center of the surface plate instead.
       newRotationMatrix.translate([(maxX - minX) / 2, (maxY - minY) / 2, (maxZ - minZ) / 2])
       newRotationMatrix.rotate(length, [axis.x, axis.y, 0])
@@ -833,9 +833,6 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   }
 
   canvas.onwheel = event => {
-    // FIXME: Zooming is nice, but we want the table to remain "centered" - current behavior is counter-intuitive.
-    //  Also, we need to change the z-multiplier to take into account the zoom factor otherwise it becomes steeper
-    //  on zoom-out.
     event.preventDefault()
     const direction = event.deltaY < 0 ? 1 : -1
     const zoomFactor = 1 + direction * 0.1
@@ -845,7 +842,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     }
     cumulativeZoomFactor *= zoomFactor
     const scaleMatrix = Mat4.create()
-    scaleMatrix.scale([zoomFactor, zoomFactor])
+    scaleMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
     tableModelMatrix.multiply(scaleMatrix)
   }
 
