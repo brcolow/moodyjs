@@ -750,10 +750,35 @@ function refreshTables(event, lines, surfacePlate) {
   }
 }
 
-let mouseDown = false
-let lastMouseX = null
-let lastMouseY = null
 const keyMap = []
+let lastMappedPosition = null
+let cumulativeZoomFactor = 1
+
+function norm(v) {
+  const length = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+  return { x: v.x / length, y: v.y / length, z: v.z / length }
+}
+
+function mapToSphere(dx, dy, canvas) {
+  const x = (2 * event.clientX - canvas.width) / canvas.width
+  const y = (canvas.height - 2 * event.clientY) / canvas.height
+  const z = 0.0
+  const length = Math.sqrt(dx * dx + dy * dy)
+  const d = length < 1.0 ? length : 1.0
+  return norm({ x: x, y: y, z: Math.sqrt(1.001 - d * d) })
+}
+
+function cross(v1, v2) {
+  return {
+    x: v1.y * v2.z - v1.z * v2.y,
+    y: v1.z * v2.x - v1.x * v2.z,
+    z: v1.x * v2.y - v1.y * v2.x
+  }
+}
+
+function dot(v1, v2) {
+  return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+}
 
 function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   const canvas = document.getElementById("glcanvas")
@@ -771,37 +796,55 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   }
 
   canvas.onmousedown = event => {
-    mouseDown = true
-    lastMouseX = event.clientX
-    lastMouseY = event.clientY
+    lastMappedPosition = mapToSphere(event.clientX, event.clientY, canvas)
   }
 
-  document.onmouseup = () => { mouseDown = false }
+  document.onmouseup = () => { lastMappedPosition = null }
   document.onmousemove = () => {
-    // FIXME: The mouse rotation is really annoying - this is not the way. We need a better "trackball" rotation.
-    if (!mouseDown) {
-       return
+
+    if (lastMappedPosition) {
+      // With the current rotation behavior the original mouse point that started the rotation acts as the origin
+      // point, and so dragging away from it rotates the table according to the mouse direction and then going back
+      // to that point resets to the original rotation - but if you go past the origin point in the other direction
+      // it rotates slower...why is that?
+      // Map mouse displacement onto virtual sphere
+      const mapped = mapToSphere(event.clientX, event.clientY, canvas)
+      const direction = { x: mapped.x - lastMappedPosition.x, y: mapped.y - lastMappedPosition.y }
+      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y)
+      // Determine rotation axis
+      const axis = cross(lastMappedPosition, mapped)
+
+      let newRotationMatrix = Mat4.create()
+      const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
+      console.log(vertices)
+      const minX = Math.min(...vertices.map(vertex => vertex.x))
+      const maxX = Math.max(...vertices.map(vertex => vertex.x))
+      const minY = Math.min(...vertices.map(vertex => vertex.y))
+      const maxY = Math.max(...vertices.map(vertex => vertex.y))
+      const minZ = Math.min(...vertices.map(vertex => vertex.z))
+      const maxZ = Math.max(...vertices.map(vertex => vertex.z))
+      // Axis is a unit vector from the origin (top-left corner of surface plate) in the direction the mouse travelled.
+      // We need it to be a unit vector from the center of the surface plate instead.
+      newRotationMatrix.translate([(maxX - minX) / 2, (maxY - minY) / 2, (maxZ - minZ) / 2])
+      newRotationMatrix.rotate(length, [axis.x, axis.y, 0])
+      newRotationMatrix.translate([-((maxX - minX) / 2), -((maxY - minY) / 2), -((maxZ - minZ) / 2)])
+      tableModelMatrix.multiply(newRotationMatrix)
+      lastMappedPosition = mapped
     }
-    const deltaX = event.clientX - lastMouseX
-    let newRotationMatrix = Mat4.create()
-    // rotate around Y axis
-    newRotationMatrix.rotate((deltaX / 5) * (Math.PI / 180), [0, -1, 0])
-
-    const deltaY = event.clientY - lastMouseY
-    // rotate around the X axis
-    newRotationMatrix.rotate((deltaY / 5) * (Math.PI / 180), [-1, 0, 0])
-
-    tableModelMatrix.multiply(newRotationMatrix)
-
-    lastMouseX = event.clientX
-    lastMouseY = event.clientY
   }
 
   canvas.onwheel = event => {
     // FIXME: Zooming is nice, but we want the table to remain "centered" - current behavior is counter-intuitive.
+    //  Also, we need to change the z-multiplier to take into account the zoom factor otherwise it becomes steeper
+    //  on zoom-out.
     event.preventDefault()
     const direction = event.deltaY < 0 ? 1 : -1
     const zoomFactor = 1 + direction * 0.1
+    if (cumulativeZoomFactor < 0.16 || cumulativeZoomFactor > 10) {
+      // Max zoom level reached, don't zoom anymore.
+      return
+    }
+    cumulativeZoomFactor *= zoomFactor
     const scaleMatrix = Mat4.create()
     scaleMatrix.scale([zoomFactor, zoomFactor])
     tableModelMatrix.multiply(scaleMatrix)
