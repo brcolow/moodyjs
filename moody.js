@@ -502,12 +502,6 @@ const moodyData =  [
   [11.7, 12.4, 12.1, 12.5, 12.0, 11.5, 11.5, 11.3, 11.3, 10.3, 10.8, 10.3, 10, 10.7, 10.4, 10.4],       // horizontalCenter
   [6.6, 6.4, 6.3, 6.5, 6.6, 6.9, 7.5, 7.4, 7.1, 7]]                                                     // verticalCenter
 
-/*
-const surfacePlate = new SurfacePlate(48, 72, reflectorFootSpacingInches)
-const moodyReport = new MoodyReport(surfacePlate, ...moodyData)
-console.log(moodyReport.printDebug())
-*/
-
 const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter", "southPerimeter",
   "westPerimeter", "horizontalCenter", "verticalCenter"]
 window.addEventListener('DOMContentLoaded', () => {
@@ -541,7 +535,8 @@ function createTables() {
   document.getElementById('numHorizontalStations').value = surfacePlate.suggestedNumberOfHorizontalStations
   document.getElementById('numVerticalStations').value = surfacePlate.suggestedNumberOfVerticalStations
   document.getElementById('numDiagonalStations').value = surfacePlate.suggestedNumberOfDiagonalStations
-  const plateDiagonalFull = Math.sqrt(((surfacePlate.surfacePlateHeightInches * surfacePlate.surfacePlateHeightInches) + (surfacePlate.surfacePlateWidthInches * surfacePlate.surfacePlateWidthInches)))
+  const plateDiagonalFull = Math.sqrt(((surfacePlate.surfacePlateHeightInches * surfacePlate.surfacePlateHeightInches) +
+    (surfacePlate.surfacePlateWidthInches * surfacePlate.surfacePlateWidthInches)))
   const gradeAAFlatnessReq = .04 * (plateDiagonalFull * plateDiagonalFull) + 40
   document.getElementById('gradeAA').value = roundTo(gradeAAFlatnessReq, 2)
   document.getElementById('gradeA').value = roundTo(gradeAAFlatnessReq * 2, 2)
@@ -559,7 +554,6 @@ function createTables() {
     document.getElementById('grade0'), document.getElementById('grade1'), document.getElementById('grade2'), document.getElementById('grade3')]
   document.getElementById("overallFlatness").addEventListener("input", event => {
    for (const flatnessInput of flatnessInputs) {
-     console.log(flatnessInput.value)
      if (Number(event.target.value) <= Number(flatnessInput.value)) {
        flatnessInput.style.background = '#C6EFCE'
      } else {
@@ -694,7 +688,6 @@ function refreshTables(event, lines, surfacePlate) {
       let tableModelMatrix = Mat4.create()
       initialize3DTableGraphic(moodyReport, tableModelMatrix)
 
-      // console.log(moodyReport.printDebug())
       lines.forEach(l => {
         Array.from(document.getElementById(l + "Table").getElementsByTagName("tbody")[0].rows).forEach((tableRow, index) => {
           const column3Input = document.createElement("input")
@@ -754,30 +747,13 @@ const keyMap = []
 let lastMappedPosition = null
 let cumulativeZoomFactor = 1
 
-function norm(v) {
-  const length = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
-  return { x: v.x / length, y: v.y / length, z: v.z / length }
-}
-
 function mapToSphere(dx, dy, canvas) {
   const x = (2 * event.clientX - canvas.width) / canvas.width
   const y = (canvas.height - 2 * event.clientY) / canvas.height
   const z = 0.0
   const length = Math.sqrt(dx * dx + dy * dy)
   const d = length < 1.0 ? length : 1.0
-  return norm({ x: x, y: y, z: Math.sqrt(1.001 - d * d) })
-}
-
-function cross(v1, v2) {
-  return {
-    x: v1.y * v2.z - v1.z * v2.y,
-    y: v1.z * v2.x - v1.x * v2.z,
-    z: v1.x * v2.y - v1.y * v2.x
-  }
-}
-
-function dot(v1, v2) {
-  return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+  return new Vector3(x, y, Math.sqrt(1.001 - d * d)).norm()
 }
 
 function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
@@ -800,19 +776,19 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   }
 
   document.onmouseup = () => { lastMappedPosition = null }
-  document.onmousemove = () => {
 
+  document.onmousemove = () => {
     if (lastMappedPosition) {
       // With the current rotation behavior the original mouse point that started the rotation acts as the origin
       // point, and so dragging away from it rotates the table according to the mouse direction and then going back
       // to that point resets to the original rotation - but if you go past the origin point in the other direction
       // it rotates slower...why is that?
-      // Map mouse displacement onto virtual sphere
+      // Map mouse displacement onto virtual sphere.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
-      const direction = { x: mapped.x - lastMappedPosition.x, y: mapped.y - lastMappedPosition.y }
+      const direction = new Vector3(mapped.x - lastMappedPosition.x, mapped.y - lastMappedPosition.y, 0)
       const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y)
-      // Determine rotation axis
-      const axis = cross(lastMappedPosition, mapped)
+      // Determine rotation axis.
+      const axis = lastMappedPosition.cross(mapped)
 
       let newRotationMatrix = Mat4.create()
       const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
@@ -870,9 +846,11 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       translateMatrix.translate([1.0, 0.0, 0.0])
     }
     if (keyMap['w'] === true) {
+      // translateMatrix.rotate(0.1, [0.0, 0.0, -1.0])
       translateMatrix.translate([0.0, 0.0, -1.0])
     }
     if (keyMap['s'] === true) {
+      // translateMatrix.rotate(0.1, [0.0, 0.0, 1.0])
       translateMatrix.translate([0.0, 0.0, 1.0])
     }
     tableModelMatrix.multiply(translateMatrix)
@@ -1012,7 +990,7 @@ function initPositionBuffer(gl, moodyReport, zMultiplier) {
   const positionBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
 
-  const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
+  const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2] - 0.5)).flat(1)
 
   const triangulation = bowyerWatson(vertices)
 
@@ -1031,7 +1009,7 @@ function initColorBuffer(gl, moodyReport, triangleVertices) {
   const triangleZValues = triangleVertices.filter((v, i) => (i + 1) % 3 == 0)
   const minZ = Math.min(...triangleZValues)
   const maxZ = Math.max(...triangleZValues)
-  const normalizedTriangleZValues = triangleZValues.map(value => ((value - minZ) / (maxZ - minZ)))
+  const normalizedTriangleZValues = triangleZValues.map(value => (value - minZ) / (maxZ - minZ))
   const colorMappedZValues = normalizedTriangleZValues.map(value => interpolate(turboColormapData, value))
   const lineColors = new Array(moodyReport.topStartingDiagonalTable.numStations).fill([0.9568627450980393, 0.2627450980392157, 0.21176470588235294, 1.0]).flat(1)
     .concat(new Array(moodyReport.bottomStartingDiagonalTable.numStations).fill([1.0, 0.9254901960784314, 0.2313725490196078, 1.0]).flat(1))
@@ -1128,6 +1106,30 @@ function loadShader(gl, type, source) {
   return shader
 }
 
+class Vector3 {
+  constructor(x, y, z) {
+    this.x = x
+    this.y = y
+    this.z = z
+  }
+
+  cross(v) {
+    return new Vector3(
+      this.y * v.z - this.z * v.y,
+      this.z * v.x - this.x * v.z,
+      this.x * v.y - this.y * v.x)
+  }
+
+  dot(v) {
+    return this.x * v.x + this.y * v.y + this.z * v.z
+  }
+
+  norm() {
+    const length = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z)
+    return new Vector3(this.x / length, this.y / length, this.z / length)
+  }
+}
+
 // Turbo Color Map by Google: https://blog.research.google/2019/08/turbo-improved-rainbow-colormap-for.html
 // Copyright 2019 Google LLC.
 // SPDX-License-Identifier: Apache-2.0
@@ -1140,11 +1142,6 @@ class Vertex {
     this.x = x
     this.y = y
     this.z = z
-  }
-
-  // We just use the 2D distance. The z is saved for later use - but it is not used in the triangulation.
-  distanceTo(otherVertex) {
-    return Math.sqrt((this.x - otherVertex.x) ** 2 + (this.y - otherVertex.y) ** 2)
   }
 
   equals(vertex) {
@@ -1243,7 +1240,7 @@ function getSuperTriangle(vertices) {
 function addVertex(vertex, triangles) {
   let edges = []
 
-  // Remove triangles with circumcircles containing the vertex
+  // Remove triangles with circumcircles containing the vertex.
   triangles = triangles.filter(triangle => {
     if (triangle.inCircumcircle(vertex)) {
       edges.push(new Edge(triangle.v0, triangle.v1))
@@ -1254,10 +1251,10 @@ function addVertex(vertex, triangles) {
     return true
   })
 
-  // Get unique edges
+  // Get unique edges.
   edges = uniqueEdges(edges)
 
-  // Create new triangles from the unique edges and new vertex
+  // Create new triangles from the unique edges and new vertex.
   edges.forEach(edge => {
     triangles.push(new Triangle(edge.v0, edge.v1, vertex))
   })
@@ -1270,7 +1267,7 @@ function uniqueEdges(edges) {
   for (let i = 0; i < edges.length; ++i) {
     let isUnique = true
 
-    // See if edge is unique
+    // See if edge is unique.
     for (let j = 0; j < edges.length; ++j) {
       if (i != j && edges[i].equals(edges[j])) {
         isUnique = false
@@ -1278,7 +1275,7 @@ function uniqueEdges(edges) {
       }
     }
 
-    // Edge is unique, add to unique edges array
+    // Edge is unique, add to unique edges array.
     isUnique && uniqueEdges.push(edges[i])
   }
 
@@ -1286,17 +1283,17 @@ function uniqueEdges(edges) {
 }
 
 function bowyerWatson(vertices) {
-  // Create bounding 'super' triangle
+  // Create bounding 'super' triangle.
   let st = getSuperTriangle(vertices)
-  // Initialize triangles while adding bounding triangle
+  // Initialize triangles while adding bounding triangle.
   let triangles = [st]
 
-  // Triangulate each vertex
+  // Triangulate each vertex.
   vertices.forEach(vertex => {
     triangles = addVertex(vertex, triangles)
   })
 
-  // Remove triangles that share edges with super triangle
+  // Remove triangles that share edges with super triangle.
   triangles = triangles.filter(triangle => {
     return !(triangle.v0 == st.v0 || triangle.v0 == st.v1 || triangle.v0 == st.v2 ||
       triangle.v1 == st.v0 || triangle.v1 == st.v1 || triangle.v1 == st.v2 ||
