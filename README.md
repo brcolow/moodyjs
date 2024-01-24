@@ -91,10 +91,12 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 ## TODO
 
 * Add a way to show a semi-transparent plane that corresponds to grade "AA", "A", and "B" flatness. tolerance(AA) =  (40 + diagonal squared/25) x .000001″, A = tolerance(AA) * 2, B=tolerance(AA) * 4
-* Show a scale for the z-axis height values.
+* Show a scale for the z-axis height values or add axes to the 3D scene.
 * Add a thickness for the table slab (add manufacturer's label).
 * Allow for "importing" a number set (maybe from a CSV file or a textarea with a simple format). 
 * Fix the way that some measuring lines are cut off on the 3D representation (this happens because the vertices are located at the first foot location).
+* Use [vertexAttribPointer()](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/vertexAttribPointer).
+* Make zooming relative to where the mouse cursor is (keep the mouse centered on zoom).
 
 ## Thanks To
 

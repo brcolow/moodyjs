@@ -98,6 +98,25 @@ ISO Overall Flatness Requirements:<br/>
 <input name="grade3" id="grade3" readonly/><br/><br/>
 <label for="overallFlatness">Overall flatness (µinch): </label>
 <input name="overallFlatness" id="overallFlatness" readonly/><br/>
+<label for="zMultiplier">Height multiplier (default: 50,000x): </label>
+<input id="zMultiplier" type="range" value="50000" min="10000" max="100000" step="any" list="markers"/>
+<datalist id="markers">
+  <option value="50000"></option>
+</datalist><br/><br/>
+<label for="lightPower">Light power: </label>
+<input id="lightPower" type="range" value="400" min="0" max="10000" step="any"/><br/>
+<label for="lightPosX">Light position X: </label>
+<input id="lightPosX" type="range" value="0" min="-100" max="100" step="any"/><br/>
+<label for="lightPosY">Light position Y: </label>
+<input id="lightPosY" type="range" value="0" min="-100" max="100" step="any"/><br/>
+<label for="lightPosZ">Light position Z: </label>
+<input id="lightPosZ" type="range" value="-40" min="-200" max="0" step="any"/><br/>
+<br/>
+<input type="checkbox" id="showLines" name="showLines" />
+<label for="showLines">Show Union Jack Lines</label><br/>
+<input type="checkbox" id="showHeatmap" name="showHeatmap" />
+<label for="showHeatmap">Show Heatmap</label><br/>
+<br/>
 <svg id="tableGraphic" preserveAspectRatio="xMaxYMid meet" style="visibility: hidden; max-width: 500px">
   <rect id="outsideRect" x="0" y="0" fill="white" stroke="black" stroke-width="0.01em"/>
   <rect id="insideRect" fill="white" stroke="black" stroke-width="0.01em"/>

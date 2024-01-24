@@ -510,6 +510,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById("plateWidth").value = moodySurfacePlateWidthInches
   document.getElementById("reflectorFootSpacing").value = moodyReflectorFootSpacingInches
 
+  zMultiplier = document.querySelector("#zMultiplier").value
   document.getElementById('fillTestData').addEventListener("click", () => {
     lines.forEach((line, lineIndex) => {
       moodyData[lineIndex].forEach((tableEntry, index) => {
@@ -746,6 +747,8 @@ function refreshTables(event, lines, surfacePlate) {
 const keyMap = []
 let lastMappedPosition = null
 let cumulativeZoomFactor = 1
+let zMultiplier = -1
+let buffers = null
 
 function mapToSphere(dx, dy, canvas) {
   const x = (2 * event.clientX - canvas.width) / canvas.width
@@ -771,6 +774,11 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     return
   }
 
+  document.querySelector("#zMultiplier").addEventListener("input", (event) => {
+    zMultiplier = event.target.value
+    buffers = getBuffers(gl, moodyReport, zMultiplier)
+  });
+
   canvas.onmousedown = event => {
     lastMappedPosition = mapToSphere(event.clientX, event.clientY, canvas)
   }
@@ -790,7 +798,8 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       // Determine rotation axis.
       const axis = lastMappedPosition.cross(mapped)
 
-      let newRotationMatrix = Mat4.create()
+      const newRotationMatrix = Mat4.create()
+      // TODO: Cache these vertices for a given zMultiplier (memoize).
       const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
       const minX = Math.min(...vertices.map(vertex => vertex.x))
       const maxX = Math.max(...vertices.map(vertex => vertex.x))
@@ -801,7 +810,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       // Axis is a unit vector from the origin (bottom-left corner of surface plate) in the direction the mouse travelled.
       // We need it to be a unit vector from the center of the surface plate instead.
       newRotationMatrix.translate([(maxX - minX) / 2, (maxY - minY) / 2, (maxZ - minZ) / 2])
-      newRotationMatrix.rotate(length, [axis.x, axis.y, 0])
+      newRotationMatrix.rotate(length, [axis.x, 0, axis.y])
       newRotationMatrix.translate([-((maxX - minX) / 2), -((maxY - minY) / 2), -((maxZ - minZ) / 2)])
       tableModelMatrix.multiply(newRotationMatrix)
       lastMappedPosition = mapped
@@ -856,6 +865,10 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     tableModelMatrix.multiply(translateMatrix)
   }
 
+  const texture = loadTexture(gl, "granite_2048x2048_compressed.png")
+  // Flip image pixels into the bottom-to-top order that WebGL expects.
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
+
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clear(gl.COLOR_BUFFER_BIT)
 
@@ -863,27 +876,33 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   const programInfo = {
     program: shaderProgram,
     attribLocations: {
-      vertexPosition: gl.getAttribLocation(shaderProgram, "aVertexPosition"),
-      vertexColor: gl.getAttribLocation(shaderProgram, "aVertexColor"),
+      vertexPosition: gl.getAttribLocation(shaderProgram, "vertexPosition"),
+      vertexNormal: gl.getAttribLocation(shaderProgram, "vertexNormal"),
+      vertexColor: gl.getAttribLocation(shaderProgram, "vertexColor"),
+      textureCoord: gl.getAttribLocation(shaderProgram, "textureCoord"),
+      vertexType: gl.getAttribLocation(shaderProgram, "vertexType"),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, "projectionMatrix"),
       modelMatrix: gl.getUniformLocation(shaderProgram, "modelMatrix"),
       viewMatrix: gl.getUniformLocation(shaderProgram, "viewMatrix"),
+      normalMatrix: gl.getUniformLocation(shaderProgram, "normalMatrix"),
+      lightPos: gl.getUniformLocation(shaderProgram, "lightPos"),
+      lightPower: gl.getUniformLocation(shaderProgram, "lightPower"),
+      sampler: gl.getUniformLocation(shaderProgram, "sampler"),
     },
   }
-  const zMultiplier = 100000
-  const buffers = initBuffers(gl, moodyReport, zMultiplier)
+  buffers = getBuffers(gl, moodyReport, zMultiplier)
 
   function render() {
-    drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix)
+    drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix, texture)
     requestAnimationFrame(render)
   }
   requestAnimationFrame(render)
 }
 
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
-function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix) {
+function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix, texture) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clearDepth(1.0)
   gl.enable(gl.DEPTH_TEST)
@@ -903,15 +922,33 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
   modelMatrix.multiply(tableModelMatrix)
 
   const viewMatrix = Mat4.create()
+  // FIXME: Don't use magic numbers. Something like maxX - minX / 2 (for x and y) and maybe 8-10 times table z-height.
   viewMatrix.translate([-35.0, -24.0, -70.0])
 
   setPositionAttribute(gl, buffers, programInfo)
+  setNormalAttribute(gl, buffers, programInfo)
   setColorAttribute(gl, buffers, programInfo)
+  setTextureAttribute(gl, buffers, programInfo)
+  setTypeAttribute(gl, buffers, programInfo)
+
   gl.useProgram(programInfo.program)
+
+  const normalMatrix = Mat4.create()
+  Mat4.invert(normalMatrix, viewMatrix.multiply(tableModelMatrix))
+  Mat4.transpose(normalMatrix, normalMatrix)
+
+  let lightPos = [document.getElementById("lightPosX").value, document.getElementById("lightPosY").value, document.getElementById("lightPosZ").value]
+  let lightPower = document.getElementById("lightPower").value
 
   gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
   gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, modelMatrix)
   gl.uniformMatrix4fv(programInfo.uniformLocations.viewMatrix, false, viewMatrix)
+  gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix)
+  gl.uniform3fv(programInfo.uniformLocations.lightPos, lightPos)
+  gl.uniform1f(programInfo.uniformLocations.lightPower, lightPower)
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+  gl.uniform1i(programInfo.uniformLocations.sampler, 0);
 
   {
     let offset = 0
@@ -953,65 +990,180 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
 }
 
 const vsSource = `
-    attribute vec4 aVertexPosition;
-    attribute vec4 aVertexColor;
+    attribute vec4 vertexPosition;
+    attribute vec3 vertexNormal;
+    attribute vec4 vertexColor;
+    attribute vec2 textureCoord;
+    attribute float vertexType;
     uniform mat4 modelMatrix;
     uniform mat4 viewMatrix;
     uniform mat4 projectionMatrix;
+    uniform mat4 normalMatrix;
     varying lowp vec4 vColor;
+    varying highp vec2 vTextureCoord;
+    varying highp vec3 normalInterp;
+    varying highp vec3 vertPos;
+    varying highp float vVertexType;
 
     void main() {
-      gl_Position = projectionMatrix * viewMatrix * modelMatrix * aVertexPosition;
-      gl_PointSize = 10.0;
-      vColor = aVertexColor;
+      gl_Position = projectionMatrix * viewMatrix * modelMatrix * vertexPosition;
+      vColor = vertexColor;
+      vTextureCoord = textureCoord;
+      vVertexType = vertexType;
+
+      normalInterp = vec3(normalMatrix * vec4(vertexNormal, 0.0));
+      vec4 vertPos4 = viewMatrix * modelMatrix * vertexPosition;
+      vertPos = vec3(vertPos4) / vertPos4.w;
     }
 `
 
 const fsSource = `
+    precision mediump float;
     varying lowp vec4 vColor;
+    varying vec3 normalInterp;
+    varying vec3 vertPos;
+    varying highp vec2 vTextureCoord;
+    varying highp float vVertexType;
+    const highp vec3 lightColor = vec3(1.0, 1.0, 1.0);
+    const highp vec3 ambientColor = vec3(0.4, 0.4, 0.4);
+    const highp vec3 diffuseColor = vec3(0.2, 0.2, 0.2);
+    const highp vec3 specColor = vec3(1.0, 1.0, 1.0);
+    const highp float shininess = 8.0;
+    const highp float screenGamma = 2.2; // Assume the monitor is calibrated to the sRGB color space
+    uniform vec3 lightPos;
+    uniform float lightPower;
+    uniform sampler2D sampler;
+
     void main() {
-      gl_FragColor = vColor;
+      if (vVertexType == 0.0) {
+        // This vertex belongs to one of the Union jack Moody lines.
+        gl_FragColor = vColor;
+      } else {
+        // This vertex belongs to the table mesh.
+        vec3 normal = normalize(normalInterp);
+        vec3 lightDir = lightPos - vertPos;
+        float distance = length(lightDir);
+
+        distance = distance * distance;
+        lightDir = normalize(lightDir);
+
+        float lambertian = max(dot(lightDir, normal), 0.0);
+        float specular = 0.0;
+
+        if (lambertian > 0.0) {
+          vec3 viewDir = normalize(-vertPos);
+          vec3 halfDir = normalize(lightDir + viewDir);
+          float specAngle = max(dot(halfDir, normal), 0.0);
+          specular = pow(specAngle, shininess);
+        }
+
+        vec3 colorLinear = ambientColor +
+                           diffuseColor * lambertian * lightColor * lightPower / distance +
+                           specColor * specular * lightColor * lightPower / distance;
+        // apply gamma correction (assume ambientColor, diffuseColor and specColor
+        // have been linearized, i.e. have no gamma correction in them)
+        vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
+        // Show the table with a granite texture:
+        gl_FragColor = texture2D(sampler, vTextureCoord) * vec4(colorGammaCorrected, 1.0);
+        // Show the table with a heat map for z-heights with lighting:
+        // gl_FragColor = vec4(vColor.rgb * colorGammaCorrected, 1.0);
+        // Show the table with a heat map for z-heights with no lighting:
+        // gl_FragColor = vColor;
+      }
     }
 `
 
-function initBuffers(gl, moodyReport, zMultiplier) {
-  const positionBuffer = initPositionBuffer(gl, moodyReport, zMultiplier)
-  const lineColorBuffer = initColorBuffer(gl, moodyReport, positionBuffer.triangleVertices)
+function getBuffers(gl, moodyReport, zMultiplier) {
+  const positionBuffer = getPositionBuffer(gl, moodyReport, zMultiplier)
+  const lineColorBuffer = getColorBuffer(gl, moodyReport, positionBuffer.triangleVertices)
 
   return {
     positionBuffer: positionBuffer.positionBuffer,
-    linePositions: positionBuffer.linePositions,
+    normalBuffer: positionBuffer.normalBuffer,
     triangleVertices: positionBuffer.triangleVertices,
+    textureBuffer: positionBuffer.textureBuffer,
+    typeBuffer: positionBuffer.typeBuffer,
     lineColors: lineColorBuffer,
   }
 }
 
-function initPositionBuffer(gl, moodyReport, zMultiplier) {
-  const positionBuffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-
-  const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2] - 0.5)).flat(1)
+function getPositionBuffer(gl, moodyReport, zMultiplier) {
+  const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
 
   const triangulation = bowyerWatson(vertices)
 
-  const triangulatedVertices = triangulation.map(triangle => [triangle.v0.x, triangle.v0.y, triangle.v0.z,
+  const triangulatedVertices = triangulation.map(triangle => [
+    triangle.v0.x, triangle.v0.y, triangle.v0.z,
     triangle.v1.x, triangle.v1.y, triangle.v1.z,
     triangle.v2.x, triangle.v2.y, triangle.v2.z]).flat(1)
-  const linePositions = new Float32Array(moodyReport.vertices(zMultiplier).flat(1)
+
+  // FIXME: We want the line to always be on top of the surface but it can dip underneath it at extreme points.
+  const positions = new Float32Array(
+    moodyReport.vertices(zMultiplier).map(v => [v[0], v[1], v[2] + 0.1]).flat(1) // "Union jack" colored lines.
     .concat(triangulatedVertices))
 
-  gl.bufferData(gl.ARRAY_BUFFER, linePositions, gl.STATIC_DRAW)
+  const positionBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
 
-  return { positionBuffer: positionBuffer, linePositions: linePositions, triangleVertices: triangulatedVertices}
+  // Calculate and create normal buffer.
+  const lineNormals = moodyReport.vertices(zMultiplier).map(v => [0.0, 0.0, 0.0]).flat(1)
+  // Each triangle has 3 vertices with the same surface normal.
+  const triangleNormals = triangulation.map(triangle => {
+    const length = Math.sqrt(triangle.surfaceNormal().x * triangle.surfaceNormal().x +
+      triangle.surfaceNormal().y * triangle.surfaceNormal().y +
+      triangle.surfaceNormal().z * triangle.surfaceNormal().z)
+    return [
+    triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
+    triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
+    triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length];
+    }).flat(1)
+  const normals = new Float32Array(lineNormals.concat(triangleNormals))
+  const normalBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
+
+  // Calculate and create texture buffer.
+  const lineTextureCoords = moodyReport.vertices(zMultiplier).map(v => [0.0, 1.0]).flat(1)
+
+  // TODO: Cache these vertices for a given zMultiplier.
+  const minX = Math.min(...vertices.map(vertex => vertex.x))
+  const maxX = Math.max(...vertices.map(vertex => vertex.x))
+  const minY = Math.min(...vertices.map(vertex => vertex.y))
+  const maxY = Math.max(...vertices.map(vertex => vertex.y))
+  const tableSurfaceRatio = (maxY - minY) / (maxX - minX)
+  const numRepeatsX = 1
+  const numRepeatsY = numRepeatsX * tableSurfaceRatio
+  //  Map [minX, maxX] => [0, 1] and [minY, maxY] => [0, 1]
+  // (val - A)*(b-a)/(B-A) + a
+  const triangleTextureCoords = triangulation.map((triangle, index) => [
+    ((triangle.v0.x - maxX) * (numRepeatsX + 1)) / (maxX - minX), ((triangle.v0.y - maxY) * (numRepeatsY + 1)) / (maxY - minY),
+    ((triangle.v1.x - maxX) * (numRepeatsX + 1)) / (maxX - minX), ((triangle.v1.y - maxY) * (numRepeatsY + 1)) / (maxY - minY),
+    ((triangle.v2.x - maxX) * (numRepeatsX + 1)) / (maxX - minX), ((triangle.v2.y - maxY) * (numRepeatsY + 1)) / (maxY - minY),]
+  ).flat(1)
+
+  const textureCoordinates = new Float32Array(lineTextureCoords.concat(triangleTextureCoords))
+  const textureBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, textureCoordinates, gl.STATIC_DRAW)
+
+  const types = new Float32Array(
+    moodyReport.vertices(zMultiplier).map(v => [0.0]).flat(1) // "Union jack" colored lines have type "0.0"
+    .concat(triangulation.map(triangle => [1.0, 1.0, 1.0]).flat(1))) // Table vertices have type "1.0"
+  const typeBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, typeBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, types, gl.STATIC_DRAW)
+
+  return { positionBuffer: positionBuffer, normalBuffer: normalBuffer, textureBuffer: textureBuffer, typeBuffer: typeBuffer, triangleVertices: triangulatedVertices }
 }
 
-function initColorBuffer(gl, moodyReport, triangleVertices) {
+function getColorBuffer(gl, moodyReport, triangleVertices) {
   const triangleZValues = triangleVertices.filter((v, i) => (i + 1) % 3 == 0)
   const minZ = Math.min(...triangleZValues)
   const maxZ = Math.max(...triangleZValues)
   const normalizedTriangleZValues = triangleZValues.map(value => (value - minZ) / (maxZ - minZ))
   const colorMappedZValues = normalizedTriangleZValues.map(value => interpolate(turboColormapData, value))
-  const lineColors = new Array(moodyReport.topStartingDiagonalTable.numStations).fill([0.9568627450980393, 0.2627450980392157, 0.21176470588235294, 1.0]).flat(1)
+  const colors = new Array(moodyReport.topStartingDiagonalTable.numStations).fill([0.9568627450980393, 0.2627450980392157, 0.21176470588235294, 1.0]).flat(1)
     .concat(new Array(moodyReport.bottomStartingDiagonalTable.numStations).fill([1.0, 0.9254901960784314, 0.2313725490196078, 1.0]).flat(1))
     .concat(new Array(moodyReport.northPerimeterTable.numStations).fill([0.2980392156862745, 0.6862745098039216, 0.3137254901960784, 1.0]).flat(1))
     .concat(new Array(moodyReport.eastPerimeterTable.numStations).fill([1.0, 0.4980392156862745, 0.3137254901960784, 1.0]).flat(1))
@@ -1021,11 +1173,11 @@ function initColorBuffer(gl, moodyReport, triangleVertices) {
     .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
     .concat(colorMappedZValues.flat(1)) // Add color mapped colors for the triangles z-value.
 
-  const lineColorBuffer = gl.createBuffer()
-  gl.bindBuffer(gl.ARRAY_BUFFER, lineColorBuffer)
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lineColors), gl.STATIC_DRAW)
+  const colorBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
 
-  return lineColorBuffer
+  return colorBuffer
 }
 
 function interpolate(colormap, x) {
@@ -1056,6 +1208,24 @@ function setPositionAttribute(gl, buffers, programInfo) {
   gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
 }
 
+function setNormalAttribute(gl, buffers, programInfo) {
+  const numComponents = 3
+  const type = gl.FLOAT
+  const normalize = false
+  const stride = 0
+  const offset = 0
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normalBuffer)
+  gl.vertexAttribPointer(
+    programInfo.attribLocations.vertexNormal,
+    numComponents,
+    type,
+    normalize,
+    stride,
+    offset,
+  )
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexNormal)
+}
+
 function setColorAttribute(gl, buffers, programInfo) {
   const numComponents = 4
   const type = gl.FLOAT
@@ -1072,6 +1242,77 @@ function setColorAttribute(gl, buffers, programInfo) {
     offset,
   )
   gl.enableVertexAttribArray(programInfo.attribLocations.vertexColor)
+}
+
+function setTextureAttribute(gl, buffers, programInfo) {
+  const num = 2
+  const type = gl.FLOAT
+  const normalize = false
+  const stride = 0
+  const offset = 0
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.textureBuffer)
+  gl.vertexAttribPointer(
+    programInfo.attribLocations.textureCoord,
+    num,
+    type,
+    normalize,
+    stride,
+    offset,
+  )
+  gl.enableVertexAttribArray(programInfo.attribLocations.textureCoord)
+}
+
+function setTypeAttribute(gl, buffers, programInfo) {
+  const numComponents = 1
+  const type = gl.FLOAT
+  const normalize = false
+  const stride = 0
+  const offset = 0
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.typeBuffer)
+  gl.vertexAttribPointer(
+    programInfo.attribLocations.vertexType,
+    numComponents,
+    type,
+    normalize,
+    stride,
+    offset)
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexType)
+}
+
+// Initialize texture and load its image.
+function loadTexture(gl, url) {
+  const texture = gl.createTexture()
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+  const level = 0
+  const internalFormat = gl.RGBA
+  const width = 1
+  const height = 1
+  const border = 0
+  const srcFormat = gl.RGBA
+  const srcType = gl.UNSIGNED_BYTE
+  const pixel = new Uint8Array([0, 0, 255, 255]) // opaque blue
+  gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, width, height, border, srcFormat, srcType, pixel)
+
+  const image = new Image()
+  image.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, texture)
+    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image)
+
+    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+      gl.generateMipmap(gl.TEXTURE_2D)
+    } else {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    }
+  }
+  image.src = url
+
+  return texture
+}
+
+function isPowerOf2(value) {
+  return (value & (value - 1)) === 0
 }
 
 // Initialize a shader program.
@@ -1120,6 +1361,9 @@ class Vector3 {
       this.x * v.y - this.y * v.x)
   }
 
+  minus(v) {
+    return new Vector3(this.x - v.x, this.y - v.y, this.z - v.z)
+ }
   dot(v) {
     return this.x * v.x + this.y * v.y + this.z * v.z
   }
@@ -1145,7 +1389,7 @@ class Vertex {
   }
 
   equals(vertex) {
-    return this.x === vertex.x && this.y == vertex.y
+    return this.x === vertex.x && this.y == vertex.y && this.z == vertex.z
   }
 }
 
@@ -1166,6 +1410,8 @@ class Triangle {
     this.v0 = v0
     this.v1 = v1
     this.v2 = v2
+    this.edgeVec0 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z)
+    this.edgeVec1 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z)
     this.calcCircumcircle()
   }
 
@@ -1211,6 +1457,10 @@ class Triangle {
     const dx = this.center.x - v.x
     const dy = this.center.y - v.y
     return Math.sqrt(dx * dx + dy * dy) <= this.radius
+  }
+
+  surfaceNormal() {
+    return this.edgeVec1.cross(this.edgeVec0)
   }
 }
 
@@ -1412,6 +1662,117 @@ class Mat4 extends Float32Array {
     out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32
     out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33
     return out
+  }
+
+  invert() {
+    return Mat4.invert(this, this)
+  }
+
+  static invert(out, a) {
+    const a00 = a[0],
+      a01 = a[1],
+      a02 = a[2],
+      a03 = a[3]
+    const a10 = a[4],
+      a11 = a[5],
+      a12 = a[6],
+      a13 = a[7]
+    const a20 = a[8],
+      a21 = a[9],
+      a22 = a[10],
+      a23 = a[11]
+    const a30 = a[12],
+      a31 = a[13],
+      a32 = a[14],
+      a33 = a[15]
+
+    const b00 = a00 * a11 - a01 * a10
+    const b01 = a00 * a12 - a02 * a10
+    const b02 = a00 * a13 - a03 * a10
+    const b03 = a01 * a12 - a02 * a11
+    const b04 = a01 * a13 - a03 * a11
+    const b05 = a02 * a13 - a03 * a12
+    const b06 = a20 * a31 - a21 * a30
+    const b07 = a20 * a32 - a22 * a30
+    const b08 = a20 * a33 - a23 * a30
+    const b09 = a21 * a32 - a22 * a31
+    const b10 = a21 * a33 - a23 * a31
+    const b11 = a22 * a33 - a23 * a32
+
+    // Calculate the determinant
+    let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06
+
+    if (!det) {
+      return null
+    }
+    det = 1.0 / det
+
+    out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det
+    out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det
+    out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det
+    out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det
+    out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det
+    out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det
+    out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det
+    out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det
+    out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det
+    out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det
+    out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det
+    out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det
+    out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det
+    out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det
+    out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det
+    out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det
+
+    return out
+  }
+
+  transpose() {
+    return Mat4.transpose(this, this)
+  }
+
+  static transpose(out, a) {
+    // If we are transposing ourselves we can skip a few steps but have to cache some values
+    if (out === a) {
+      const a01 = a[1],
+        a02 = a[2],
+        a03 = a[3]
+      const a12 = a[6],
+        a13 = a[7]
+      const a23 = a[11]
+
+      out[1] = a[4]
+      out[2] = a[8]
+      out[3] = a[12]
+      out[4] = a01
+      out[6] = a[9]
+      out[7] = a[13]
+      out[8] = a02
+      out[9] = a12
+      out[11] = a[14]
+      out[12] = a03
+      out[13] = a13
+      out[14] = a23
+    } else {
+      out[0] = a[0]
+      out[1] = a[4]
+      out[2] = a[8]
+      out[3] = a[12]
+      out[4] = a[1]
+      out[5] = a[5]
+      out[6] = a[9]
+      out[7] = a[13]
+      out[8] = a[2]
+      out[9] = a[6]
+      out[10] = a[10]
+      out[11] = a[14]
+      out[12] = a[3]
+      out[13] = a[7]
+      out[14] = a[11]
+      out[15] = a[15]
+    }
+
+    return out;
   }
 
   // WebGL/OpenGL compat (z range [-1, 1])
