@@ -761,8 +761,8 @@ function mapToSphere(dx, dy, canvas) {
 
 function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   const canvas = document.getElementById("glcanvas")
-  // const gl = canvas.getContext("webgl")
-  const gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl"))
+  // const gl = canvas.getContext("webgl2")
+  const gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"))
   if (gl === null) {
     console.log("Unable to initialize WebGL. Your browser or machine may not support it.")
     const ctx = canvas.getContext("2d")
@@ -879,7 +879,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       vertexPosition: gl.getAttribLocation(shaderProgram, "vertexPosition"),
       vertexNormal: gl.getAttribLocation(shaderProgram, "vertexNormal"),
       vertexColor: gl.getAttribLocation(shaderProgram, "vertexColor"),
-      textureCoord: gl.getAttribLocation(shaderProgram, "textureCoord"),
+      textureCoord: gl.getAttribLocation(shaderProgram, "vertexTextureCoord"),
       vertexType: gl.getAttribLocation(shaderProgram, "vertexType"),
     },
     uniformLocations: {
@@ -989,26 +989,26 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
   }
 }
 
-const vsSource = `
-    attribute vec4 vertexPosition;
-    attribute vec3 vertexNormal;
-    attribute vec4 vertexColor;
-    attribute vec2 textureCoord;
-    attribute float vertexType;
+const vsSource = `#version 300 es
+    in vec4 vertexPosition;
+    in vec3 vertexNormal;
+    in vec4 vertexColor;
+    in vec2 vertexTextureCoord;
+    in float vertexType;
     uniform mat4 modelMatrix;
     uniform mat4 viewMatrix;
     uniform mat4 projectionMatrix;
     uniform mat4 normalMatrix;
-    varying lowp vec4 vColor;
-    varying highp vec2 vTextureCoord;
-    varying highp vec3 normalInterp;
-    varying highp vec3 vertPos;
-    varying highp float vVertexType;
+    out lowp vec4 color;
+    out highp vec2 textureCoord;
+    out highp vec3 normalInterp;
+    out highp vec3 vertPos;
+    out highp float vVertexType;
 
     void main() {
       gl_Position = projectionMatrix * viewMatrix * modelMatrix * vertexPosition;
-      vColor = vertexColor;
-      vTextureCoord = textureCoord;
+      color = vertexColor;
+      textureCoord = vertexTextureCoord;
       vVertexType = vertexType;
 
       normalInterp = vec3(normalMatrix * vec4(vertexNormal, 0.0));
@@ -1017,13 +1017,13 @@ const vsSource = `
     }
 `
 
-const fsSource = `
+const fsSource = `#version 300 es
     precision mediump float;
-    varying lowp vec4 vColor;
-    varying vec3 normalInterp;
-    varying vec3 vertPos;
-    varying highp vec2 vTextureCoord;
-    varying highp float vVertexType;
+    in lowp vec4 color;
+    in vec3 normalInterp;
+    in vec3 vertPos;
+    in highp vec2 textureCoord;
+    in highp float vVertexType;
     const highp vec3 lightColor = vec3(1.0, 1.0, 1.0);
     const highp vec3 ambientColor = vec3(0.4, 0.4, 0.4);
     const highp vec3 diffuseColor = vec3(0.2, 0.2, 0.2);
@@ -1033,11 +1033,12 @@ const fsSource = `
     uniform vec3 lightPos;
     uniform float lightPower;
     uniform sampler2D sampler;
+    out vec4 outputColor;
 
     void main() {
       if (vVertexType == 0.0) {
         // This vertex belongs to one of the Union jack Moody lines.
-        gl_FragColor = vColor;
+        outputColor = color;
       } else {
         // This vertex belongs to the table mesh.
         vec3 normal = normalize(normalInterp);
@@ -1064,11 +1065,11 @@ const fsSource = `
         // have been linearized, i.e. have no gamma correction in them)
         vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
         // Show the table with a granite texture:
-        gl_FragColor = texture2D(sampler, vTextureCoord) * vec4(colorGammaCorrected, 1.0);
+        outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
         // Show the table with a heat map for z-heights with lighting:
-        // gl_FragColor = vec4(vColor.rgb * colorGammaCorrected, 1.0);
+        // outputColor = vec4(color.rgb * colorGammaCorrected, 1.0);
         // Show the table with a heat map for z-heights with no lighting:
-        // gl_FragColor = vColor;
+        // outputColor = color;
       }
     }
 `
