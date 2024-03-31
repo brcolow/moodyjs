@@ -2,7 +2,8 @@
 
 An implementation of the "Moody Method" for surface plate flatness.
 
-[Try It](https://brcolow.github.io/moodyjs/)
+[Try It](https://brcolow.github.io/moodyjs/). Click "Create Tables" and then "Fill Test Data" if you don't have any
+real values to put in.
 
 ![Screenshot](/screenshot.png?raw=true "Screenshot")
 
