@@ -749,6 +749,8 @@ let lastMappedPosition = null
 let cumulativeZoomFactor = 1
 let zMultiplier = -1
 let buffers = null
+let showHeatmap = true
+let lightingOn = true
 
 function mapToSphere(dx, dy, canvas) {
   const x = (2 * event.clientX - canvas.width) / canvas.width
@@ -774,10 +776,13 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     return
   }
 
-  document.querySelector("#zMultiplier").addEventListener("input", (event) => {
+  document.querySelector("#zMultiplier").addEventListener("input", event => {
     zMultiplier = event.target.value
     buffers = getBuffers(gl, moodyReport, zMultiplier)
-  });
+  })
+
+  document.getElementById("showHeatmap").addEventListener("change", event => showHeatmap = event.target.checked)
+  document.getElementById("lightingOn").addEventListener("change", event => lightingOn = event.target.checked)
 
   canvas.onmousedown = event => {
     lastMappedPosition = mapToSphere(event.clientX, event.clientY, canvas)
@@ -890,6 +895,8 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       lightPos: gl.getUniformLocation(shaderProgram, "lightPos"),
       lightPower: gl.getUniformLocation(shaderProgram, "lightPower"),
       sampler: gl.getUniformLocation(shaderProgram, "sampler"),
+      showHeatmap: gl.getUniformLocation(shaderProgram, "showHeatmap"),
+      lightingOn: gl.getUniformLocation(shaderProgram, "lightingOn"),
     },
   }
   buffers = getBuffers(gl, moodyReport, zMultiplier)
@@ -948,7 +955,9 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
   gl.uniform1f(programInfo.uniformLocations.lightPower, lightPower)
   gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, texture)
-  gl.uniform1i(programInfo.uniformLocations.sampler, 0);
+  gl.uniform1i(programInfo.uniformLocations.sampler, 0)
+  gl.uniform1i(programInfo.uniformLocations.showHeatmap, showHeatmap)
+  gl.uniform1i(programInfo.uniformLocations.lightingOn, lightingOn)
 
   {
     let offset = 0
@@ -1033,6 +1042,8 @@ const fsSource = `#version 300 es
     uniform vec3 lightPos;
     uniform float lightPower;
     uniform sampler2D sampler;
+    uniform bool showHeatmap;
+    uniform bool lightingOn;
     out vec4 outputColor;
 
     void main() {
@@ -1065,11 +1076,19 @@ const fsSource = `#version 300 es
         // have been linearized, i.e. have no gamma correction in them)
         vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
         // Show the table with a granite texture:
-        // outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
-        // Show the table with a heat map for z-heights with lighting:
-        // outputColor = vec4(color.rgb * colorGammaCorrected, 1.0);
-        // Show the table with a heat map for z-heights with no lighting:
-        outputColor = color;
+        if (!showHeatmap) {
+          if (lightingOn) {
+            outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
+          } else {
+            outputColor = texture(sampler, textureCoord);
+          }
+        } else {
+          if (lightingOn) {
+            outputColor = vec4(color.rgb * colorGammaCorrected, 1.0);
+          } else {
+            outputColor = color;
+          }
+        }
       }
     }
 `
@@ -1117,7 +1136,7 @@ function getPositionBuffer(gl, moodyReport, zMultiplier) {
     return [
     triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
     triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
-    triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length];
+    triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length]
     }).flat(1)
   const normals = new Float32Array(lineNormals.concat(triangleNormals))
   const normalBuffer = gl.createBuffer()
@@ -1773,7 +1792,7 @@ class Mat4 extends Float32Array {
       out[15] = a[15]
     }
 
-    return out;
+    return out
   }
 
   // WebGL/OpenGL compat (z range [-1, 1])
