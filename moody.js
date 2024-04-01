@@ -1065,11 +1065,11 @@ const fsSource = `#version 300 es
         // have been linearized, i.e. have no gamma correction in them)
         vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
         // Show the table with a granite texture:
-        outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
+        // outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
         // Show the table with a heat map for z-heights with lighting:
         // outputColor = vec4(color.rgb * colorGammaCorrected, 1.0);
         // Show the table with a heat map for z-heights with no lighting:
-        // outputColor = color;
+        outputColor = color;
       }
     }
 `

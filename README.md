@@ -87,8 +87,6 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 
 ### ISO 8512-2
 
-
-
 ## TODO
 
 * Add a way to show a semi-transparent plane that corresponds to grade "AA", "A", and "B" flatness. tolerance(AA) =  (40 + diagonal squared/25) x .000001″, A = tolerance(AA) * 2, B=tolerance(AA) * 4
@@ -98,6 +96,11 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 * Fix the way that some measuring lines are cut off on the 3D representation (this happens because the vertices are located at the first foot location).
 * Make zooming relative to where the mouse cursor is (keep the mouse centered on zoom).
 * Fix rotation to the right of the screen.
+
+## Developer Notes
+
+You can just open index.html to run MoodyJS but because external resources are used (textures) these assets need to be served via http:// (and not file://) for the browser not to complain.
+This can be done by running `npm run serve` in the root project directory.
 
 ## Thanks To
 
