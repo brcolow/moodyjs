@@ -749,6 +749,7 @@ let lastMappedPosition = null
 let cumulativeZoomFactor = 1
 let zMultiplier = -1
 let buffers = null
+let showLines = true
 let showHeatmap = true
 let lightingOn = true
 
@@ -781,6 +782,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     buffers = getBuffers(gl, moodyReport, zMultiplier)
   })
 
+  document.getElementById("showLines").addEventListener("change", event => showLines = event.target.checked)
   document.getElementById("showHeatmap").addEventListener("change", event => showHeatmap = event.target.checked)
   document.getElementById("lightingOn").addEventListener("change", event => lightingOn = event.target.checked)
 
@@ -895,6 +897,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       lightPos: gl.getUniformLocation(shaderProgram, "lightPos"),
       lightPower: gl.getUniformLocation(shaderProgram, "lightPower"),
       sampler: gl.getUniformLocation(shaderProgram, "sampler"),
+      showLines: gl.getUniformLocation(shaderProgram, "showLines"),
       showHeatmap: gl.getUniformLocation(shaderProgram, "showHeatmap"),
       lightingOn: gl.getUniformLocation(shaderProgram, "lightingOn"),
     },
@@ -956,6 +959,7 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
   gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, texture)
   gl.uniform1i(programInfo.uniformLocations.sampler, 0)
+  gl.uniform1i(programInfo.uniformLocations.showLines, showLines)
   gl.uniform1i(programInfo.uniformLocations.showHeatmap, showHeatmap)
   gl.uniform1i(programInfo.uniformLocations.lightingOn, lightingOn)
 
@@ -1042,6 +1046,7 @@ const fsSource = `#version 300 es
     uniform vec3 lightPos;
     uniform float lightPower;
     uniform sampler2D sampler;
+    uniform bool showLines;
     uniform bool showHeatmap;
     uniform bool lightingOn;
     out vec4 outputColor;
@@ -1049,7 +1054,11 @@ const fsSource = `#version 300 es
     void main() {
       if (vVertexType == 0.0) {
         // This vertex belongs to one of the Union jack Moody lines.
-        outputColor = color;
+        if (showLines) {
+          outputColor = color;
+        } else {
+          discard;
+        }
       } else {
         // This vertex belongs to the table mesh.
         vec3 normal = normalize(normalInterp);
@@ -1075,7 +1084,6 @@ const fsSource = `#version 300 es
         // apply gamma correction (assume ambientColor, diffuseColor and specColor
         // have been linearized, i.e. have no gamma correction in them)
         vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
-        // Show the table with a granite texture:
         if (!showHeatmap) {
           if (lightingOn) {
             outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
@@ -1084,6 +1092,7 @@ const fsSource = `#version 300 es
           }
         } else {
           if (lightingOn) {
+            // No heatmap - show the table with a granite texture.
             outputColor = vec4(color.rgb * colorGammaCorrected, 1.0);
           } else {
             outputColor = color;
@@ -1155,7 +1164,7 @@ function getPositionBuffer(gl, moodyReport, zMultiplier) {
   const numRepeatsX = 1
   const numRepeatsY = numRepeatsX * tableSurfaceRatio
   //  Map [minX, maxX] => [0, 1] and [minY, maxY] => [0, 1]
-  // (val - A)*(b-a)/(B-A) + a
+  // (val - A) * (b - a) / (B - A) + a
   const triangleTextureCoords = triangulation.map((triangle, index) => [
     ((triangle.v0.x - maxX) * (numRepeatsX + 1)) / (maxX - minX), ((triangle.v0.y - maxY) * (numRepeatsY + 1)) / (maxY - minY),
     ((triangle.v1.x - maxX) * (numRepeatsX + 1)) / (maxX - minX), ((triangle.v1.y - maxY) * (numRepeatsY + 1)) / (maxY - minY),
