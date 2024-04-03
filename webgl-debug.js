@@ -3,7 +3,7 @@
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a
 ** copy of this software and/or associated documentation files (the
-** "Materials"), to deal in the Materials without restriction, including
+** 'Materials'), to deal in the Materials without restriction, including
 ** without limitation the rights to use, copy, modify, merge, publish,
 ** distribute, sublicense, and/or sell copies of the Materials, and to
 ** permit persons to whom the Materials are furnished to do so, subject to
@@ -12,7 +12,7 @@
 ** The above copyright notice and this permission notice shall be included
 ** in all copies or substantial portions of the Materials.
 **
-** THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+** THE MATERIALS ARE PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
 ** EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 ** MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 ** IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
@@ -22,8 +22,6 @@
 */
 
 // Various functions for helping debug WebGL apps.
-
-WebGLDebugUtils = function() {
 
 /**
  * Wrapped logging function.
@@ -92,22 +90,31 @@ var glValidEnumContexts = {
   'getTexParameter': {2: { 0:true, 1:true }},
   'texParameterf': {3: { 0:true, 1:true }},
   'texParameteri': {3: { 0:true, 1:true, 2:true }},
-  // texImage2D and texSubImage2D are defined below with WebGL 2 entrypoints
+  'texImage2D': {
+     9: { 0:true, 2:true, 6:true, 7:true },
+     6: { 0:true, 2:true, 3:true, 4:true }
+  },
+  'texSubImage2D': {
+    9: { 0:true, 6:true, 7:true },
+    7: { 0:true, 4:true, 5:true }
+  },
   'copyTexImage2D': {8: { 0:true, 2:true }},
   'copyTexSubImage2D': {8: { 0:true }},
   'generateMipmap': {1: { 0:true }},
-  // compressedTexImage2D and compressedTexSubImage2D are defined below with WebGL 2 entrypoints
+  'compressedTexImage2D': {7: { 0: true, 2:true }},
+  'compressedTexSubImage2D': {8: { 0: true, 6:true }},
 
   // Buffer objects
 
   'bindBuffer': {2: { 0:true }},
-  // bufferData and bufferSubData are defined below with WebGL 2 entrypoints
+  'bufferData': {3: { 0:true, 2:true }},
+  'bufferSubData': {3: { 0:true }},
   'getBufferParameter': {2: { 0:true, 1:true }},
 
   // Renderbuffers and framebuffers
 
   'pixelStorei': {2: { 0:true, 1:true }},
-  // readPixels is defined below with WebGL 2 entrypoints
+  'readPixels': {7: { 4:true, 5:true }},
   'bindRenderbuffer': {2: { 0:true }},
   'bindFramebuffer': {2: { 0:true }},
   'checkFramebufferStatus': {1: { 0:true }},
@@ -143,137 +150,7 @@ var glValidEnumContexts = {
 
   // EXT_blend_minmax extension
 
-  'blendEquationEXT': {1: { 0:true }},
-
-  // WebGL 2 Buffer objects
-
-  'bufferData': {
-    3: { 0:true, 2:true }, // WebGL 1
-    4: { 0:true, 2:true }, // WebGL 2
-    5: { 0:true, 2:true }  // WebGL 2
-  },
-  'bufferSubData': {
-    3: { 0:true }, // WebGL 1
-    4: { 0:true }, // WebGL 2
-    5: { 0:true }  // WebGL 2
-  },
-  'copyBufferSubData': {5: { 0:true, 1:true }},
-  'getBufferSubData': {3: { 0:true }, 4: { 0:true }, 5: { 0:true }},
-
-  // WebGL 2 Framebuffer objects
-
-  'blitFramebuffer': {10: { 8: { 'enumBitwiseOr': ['COLOR_BUFFER_BIT', 'DEPTH_BUFFER_BIT', 'STENCIL_BUFFER_BIT'] }, 9:true }},
-  'framebufferTextureLayer': {5: { 0:true, 1:true }},
-  'invalidateFramebuffer': {2: { 0:true }},
-  'invalidateSubFramebuffer': {6: { 0:true }},
-  'readBuffer': {1: { 0:true }},
-
-  // WebGL 2 Renderbuffer objects
-
-  'getInternalformatParameter': {3: { 0:true, 1:true, 2:true }},
-  'renderbufferStorageMultisample': {5: { 0:true, 2:true }},
-
-  // WebGL 2 Texture objects
-
-  'texStorage2D': {5: { 0:true, 2:true }},
-  'texStorage3D': {6: { 0:true, 2:true }},
-  'texImage2D': {
-    9: { 0:true, 2:true, 6:true, 7:true }, // WebGL 1 & 2
-    6: { 0:true, 2:true, 3:true, 4:true }, // WebGL 1
-    10: { 0:true, 2:true, 6:true, 7:true } // WebGL 2
-  },
-  'texImage3D': {
-    10: { 0:true, 2:true, 7:true, 8:true },
-    11: { 0:true, 2:true, 7:true, 8:true }
-  },
-  'texSubImage2D': {
-    9: { 0:true, 6:true, 7:true }, // WebGL 1 & 2
-    7: { 0:true, 4:true, 5:true }, // WebGL 1
-    10: { 0:true, 6:true, 7:true } // WebGL 2
-  },
-  'texSubImage3D': {
-    11: { 0:true, 8:true, 9:true },
-    12: { 0:true, 8:true, 9:true }
-  },
-  'copyTexSubImage3D': {9: { 0:true }},
-  'compressedTexImage2D': {
-    7: { 0: true, 2:true }, // WebGL 1 & 2
-    8: { 0: true, 2:true }, // WebGL 2
-    9: { 0: true, 2:true }  // WebGL 2
-  },
-  'compressedTexImage3D': {
-    8: { 0: true, 2:true },
-    9: { 0: true, 2:true },
-    10: { 0: true, 2:true }
-  },
-  'compressedTexSubImage2D': {
-    8: { 0: true, 6:true }, // WebGL 1 & 2
-    9: { 0: true, 6:true }, // WebGL 2
-    10: { 0: true, 6:true } // WebGL 2
-  },
-  'compressedTexSubImage3D': {
-    10: { 0: true, 8:true },
-    11: { 0: true, 8:true },
-    12: { 0: true, 8:true }
-  },
-
-  // WebGL 2 Vertex attribs
-
-  'vertexAttribIPointer': {5: { 2:true }},
-
-  // WebGL 2 Writing to the drawing buffer
-
-  'drawArraysInstanced': {4: { 0:true }},
-  'drawElementsInstanced': {5: { 0:true, 2:true }},
-  'drawRangeElements': {6: { 0:true, 4:true }},
-
-  // WebGL 2 Reading back pixels
-
-  'readPixels': {
-    7: { 4:true, 5:true }, // WebGL 1 & 2
-    8: { 4:true, 5:true }  // WebGL 2
-  },
-
-  // WebGL 2 Multiple Render Targets
-
-  'clearBufferfv': {3: { 0:true }, 4: { 0:true }},
-  'clearBufferiv': {3: { 0:true }, 4: { 0:true }},
-  'clearBufferuiv': {3: { 0:true }, 4: { 0:true }},
-  'clearBufferfi': {4: { 0:true }},
-
-  // WebGL 2 Query objects
-
-  'beginQuery': {2: { 0:true }},
-  'endQuery': {1: { 0:true }},
-  'getQuery': {2: { 0:true, 1:true }},
-  'getQueryParameter': {2: { 1:true }},
-
-  // WebGL 2 Sampler objects
-
-  'samplerParameteri': {3: { 1:true, 2:true }},
-  'samplerParameterf': {3: { 1:true }},
-  'getSamplerParameter': {2: { 1:true }},
-
-  // WebGL 2 Sync objects
-
-  'fenceSync': {2: { 0:true, 1: { 'enumBitwiseOr': [] } }},
-  'clientWaitSync': {3: { 1: { 'enumBitwiseOr': ['SYNC_FLUSH_COMMANDS_BIT'] } }},
-  'waitSync': {3: { 1: { 'enumBitwiseOr': [] } }},
-  'getSyncParameter': {2: { 1:true }},
-
-  // WebGL 2 Transform Feedback
-
-  'bindTransformFeedback': {2: { 0:true }},
-  'beginTransformFeedback': {1: { 0:true }},
-  'transformFeedbackVaryings': {3: { 2:true }},
-
-  // WebGL2 Uniform Buffer Objects and Transform Feedback Buffers
-
-  'bindBufferBase': {3: { 0:true }},
-  'bindBufferRange': {5: { 0:true }},
-  'getIndexedParameter': {2: { 0:true }},
-  'getActiveUniforms': {3: { 2:true }},
-  'getActiveUniformBlockParameter': {3: { 2:true }}
+  'blendEquationEXT': {1: { 0:true }}
 };
 
 /**
@@ -338,8 +215,8 @@ function mightBeEnum(value) {
 function glEnumToString(value) {
   checkInit();
   var name = glEnums[value];
-  return (name !== undefined) ? ("gl." + name) :
-      ("/*UNKNOWN WebGL ENUM*/ 0x" + value.toString(16) + "");
+  return (name !== undefined) ? ('gl.' + name) :
+      ('/*UNKNOWN WebGL ENUM*/ 0x' + value.toString(16) + '');
 }
 
 /**
@@ -381,13 +258,9 @@ function glFunctionArgToString(functionName, numArgs, argumentIndex, value) {
     }
   }
   if (value === null) {
-    return "null";
+    return 'null';
   } else if (value === undefined) {
-    return "undefined";
-  } else if (ArrayBuffer.isView(value)) {
-    // Large typed array views are common in WebGL APIs and create
-    // huge strings in logs.
-    return "<" + value.constructor.name + ">";
+    return 'undefined';
   } else {
     return value.toString();
   }
@@ -402,8 +275,8 @@ function glFunctionArgToString(functionName, numArgs, argumentIndex, value) {
  * @return {string} The arguments as a string.
  */
 function glFunctionArgsToString(functionName, args) {
-  // apparently we can't do args.join(",");
-  var argStr = "";
+  // apparently we can't do args.join(',');
+  var argStr = '';
   var numArgs = args.length;
   for (var ii = 0; ii < numArgs; ++ii) {
     argStr += ((ii == 0) ? '' : ', ') +
@@ -414,24 +287,24 @@ function glFunctionArgsToString(functionName, args) {
 
 
 function makePropertyWrapper(wrapper, original, propertyName) {
-  //log("wrap prop: " + propertyName);
+  //log('wrap prop: ' + propertyName);
   wrapper.__defineGetter__(propertyName, function() {
     return original[propertyName];
   });
   // TODO(gmane): this needs to handle properties that take more than
   // one value?
   wrapper.__defineSetter__(propertyName, function(value) {
-    //log("set: " + propertyName);
+    //log('set: ' + propertyName);
     original[propertyName] = value;
   });
 }
 
 // Makes a function that calls a function on another object.
 function makeFunctionWrapper(original, functionName) {
-  //log("wrap fn: " + functionName);
+  //log('wrap fn: ' + functionName);
   var f = original[functionName];
   return function() {
-    //log("call: " + functionName);
+    //log('call: ' + functionName);
     var result = f.apply(original, arguments);
     return result;
   };
@@ -458,15 +331,15 @@ function makeDebugContext(ctx, opt_onErrorFunc, opt_onFunc, opt_err_ctx) {
   opt_err_ctx = opt_err_ctx || ctx;
   init(ctx);
   opt_onErrorFunc = opt_onErrorFunc || function(err, functionName, args) {
-        // apparently we can't do args.join(",");
-        var argStr = "";
+        // apparently we can't do args.join(',');
+        var argStr = '';
         var numArgs = args.length;
         for (var ii = 0; ii < numArgs; ++ii) {
           argStr += ((ii == 0) ? '' : ', ') +
               glFunctionArgToString(functionName, numArgs, ii, args[ii]);
         }
-        error("WebGL error "+ glEnumToString(err) + " in "+ functionName +
-              "(" + argStr + ")");
+        error('WebGL error '+ glEnumToString(err) + ' in '+ functionName +
+              '(' + argStr + ')');
       };
 
   // Holds booleans for each GL error so after we get the error ourselves
@@ -500,9 +373,6 @@ function makeDebugContext(ctx, opt_onErrorFunc, opt_onFunc, opt_err_ctx) {
         var wrapped = makeErrorWrapper(ctx, propertyName);
         wrapper[propertyName] = function () {
           var result = wrapped.apply(ctx, arguments);
-          if (!result) {
-            return null;
-          }
           return makeDebugContext(result, opt_onErrorFunc, opt_onFunc, opt_err_ctx);
         };
       }
@@ -528,12 +398,6 @@ function makeDebugContext(ctx, opt_onErrorFunc, opt_onFunc, opt_err_ctx) {
 }
 
 function resetToInitialState(ctx) {
-  var isWebGL2RenderingContext = !!ctx.createTransformFeedback;
-
-  if (isWebGL2RenderingContext) {
-    ctx.bindVertexArray(null);
-  }
-
   var numAttribs = ctx.getParameter(ctx.MAX_VERTEX_ATTRIBS);
   var tmp = ctx.createBuffer();
   ctx.bindBuffer(ctx.ARRAY_BUFFER, tmp);
@@ -541,9 +405,6 @@ function resetToInitialState(ctx) {
     ctx.disableVertexAttribArray(ii);
     ctx.vertexAttribPointer(ii, 4, ctx.FLOAT, false, 0, 0);
     ctx.vertexAttrib1f(ii, 0);
-    if (isWebGL2RenderingContext) {
-      ctx.vertexAttribDivisor(ii, 0);
-    }
   }
   ctx.deleteBuffer(tmp);
 
@@ -552,11 +413,6 @@ function resetToInitialState(ctx) {
     ctx.activeTexture(ctx.TEXTURE0 + ii);
     ctx.bindTexture(ctx.TEXTURE_CUBE_MAP, null);
     ctx.bindTexture(ctx.TEXTURE_2D, null);
-    if (isWebGL2RenderingContext) {
-      ctx.bindTexture(ctx.TEXTURE_2D_ARRAY, null);
-      ctx.bindTexture(ctx.TEXTURE_3D, null);
-      ctx.bindSampler(ii, null);
-    }
   }
 
   ctx.activeTexture(ctx.TEXTURE0);
@@ -601,33 +457,6 @@ function resetToInitialState(ctx) {
   ctx.viewport(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.clear(ctx.COLOR_BUFFER_BIT | ctx.DEPTH_BUFFER_BIT | ctx.STENCIL_BUFFER_BIT);
 
-  if (isWebGL2RenderingContext) {
-    ctx.drawBuffers([ctx.BACK]);
-    ctx.readBuffer(ctx.BACK);
-    ctx.bindBuffer(ctx.COPY_READ_BUFFER, null);
-    ctx.bindBuffer(ctx.COPY_WRITE_BUFFER, null);
-    ctx.bindBuffer(ctx.PIXEL_PACK_BUFFER, null);
-    ctx.bindBuffer(ctx.PIXEL_UNPACK_BUFFER, null);
-    var numTransformFeedbacks = ctx.getParameter(ctx.MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS);
-    for (var ii = 0; ii < numTransformFeedbacks; ++ii) {
-      ctx.bindBufferBase(ctx.TRANSFORM_FEEDBACK_BUFFER, ii, null);
-    }
-    var numUBOs = ctx.getParameter(ctx.MAX_UNIFORM_BUFFER_BINDINGS);
-    for (var ii = 0; ii < numUBOs; ++ii) {
-      ctx.bindBufferBase(ctx.UNIFORM_BUFFER, ii, null);
-    }
-    ctx.disable(ctx.RASTERIZER_DISCARD);
-    ctx.pixelStorei(ctx.UNPACK_IMAGE_HEIGHT, 0);
-    ctx.pixelStorei(ctx.UNPACK_SKIP_IMAGES, 0);
-    ctx.pixelStorei(ctx.UNPACK_ROW_LENGTH, 0);
-    ctx.pixelStorei(ctx.UNPACK_SKIP_ROWS, 0);
-    ctx.pixelStorei(ctx.UNPACK_SKIP_PIXELS, 0);
-    ctx.pixelStorei(ctx.PACK_ROW_LENGTH, 0);
-    ctx.pixelStorei(ctx.PACK_SKIP_ROWS, 0);
-    ctx.pixelStorei(ctx.PACK_SKIP_PIXELS, 0);
-    ctx.hint(ctx.FRAGMENT_SHADER_DERIVATIVE_HINT, ctx.DONT_CARE);
-  }
-
   // TODO: This should NOT be needed but Firefox fails with 'hint'
   while(ctx.getError());
 }
@@ -646,7 +475,6 @@ function makeLostContextSimulatingCanvas(canvas) {
   var numCalls_ = 0;
   var canRestore_ = false;
   var restoreTimeout_ = 0;
-  var isWebGL2RenderingContext;
 
   // Holds booleans for each GL error so can simulate errors.
   var glErrorShadow_ = { };
@@ -655,12 +483,11 @@ function makeLostContextSimulatingCanvas(canvas) {
     return function() {
       var ctx = f.apply(canvas, arguments);
       // Did we get a context and is it a WebGL context?
-      if ((ctx instanceof WebGLRenderingContext) || (window.WebGL2RenderingContext && (ctx instanceof WebGL2RenderingContext))) {
+      if (ctx instanceof WebGLRenderingContext) {
         if (ctx != unwrappedContext_) {
           if (unwrappedContext_) {
-            throw "got different context"
+            throw 'got different context'
           }
-          isWebGL2RenderingContext = window.WebGL2RenderingContext && (ctx instanceof WebGL2RenderingContext);
           unwrappedContext_ = ctx;
           wrappedContext_ = makeLostContextSimulatingContext(unwrappedContext_);
         }
@@ -671,7 +498,7 @@ function makeLostContextSimulatingCanvas(canvas) {
   }(canvas.getContext);
 
   function wrapEvent(listener) {
-    if (typeof(listener) == "function") {
+    if (typeof(listener) == 'function') {
       return listener;
     } else {
       return function(info) {
@@ -715,12 +542,12 @@ function makeLostContextSimulatingCanvas(canvas) {
       while (unwrappedContext_.getError());
       clearErrors();
       glErrorShadow_[unwrappedContext_.CONTEXT_LOST_WEBGL] = true;
-      var event = makeWebGLContextEvent("context lost");
+      var event = makeWebGLContextEvent('context lost');
       var callbacks = onLost_.slice();
       setTimeout(function() {
-          //log("numCallbacks:" + callbacks.length);
+          //log('numCallbacks:' + callbacks.length);
           for (var ii = 0; ii < callbacks.length; ++ii) {
-            //log("calling callback:" + ii);
+            //log('calling callback:' + ii);
             callbacks[ii](event);
           }
           if (restoreTimeout_ >= 0) {
@@ -737,7 +564,7 @@ function makeLostContextSimulatingCanvas(canvas) {
       if (onRestored_.length) {
         setTimeout(function() {
             if (!canRestore_) {
-              throw "can not restore. webglcontestlost listener did not call event.preventDefault";
+              throw 'can not restore. webglcontestlost listener did not call event.preventDefault';
             }
             freeResources();
             resetToInitialState(unwrappedContext_);
@@ -745,7 +572,7 @@ function makeLostContextSimulatingCanvas(canvas) {
             numCalls_ = 0;
             canRestore_ = false;
             var callbacks = onRestored_.slice();
-            var event = makeWebGLContextEvent("context restored");
+            var event = makeWebGLContextEvent('context restored');
             for (var ii = 0; ii < callbacks.length; ++ii) {
               callbacks[ii](event);
             }
@@ -756,7 +583,7 @@ function makeLostContextSimulatingCanvas(canvas) {
 
   canvas.loseContextInNCalls = function(numCalls) {
     if (contextLost_) {
-      throw "You can not ask a lost contet to be lost";
+      throw 'You can not ask a lost contet to be lost';
     }
     numCallsToLoseContext_ = numCalls_ + numCalls;
   };
@@ -792,7 +619,7 @@ function makeLostContextSimulatingCanvas(canvas) {
   function clearErrors() {
     var k = Object.keys(glErrorShadow_);
     for (var ii = 0; ii < k.length; ++ii) {
-      delete glErrorShadow_[k[ii]];
+      delete glErrorShadow_[k];
     }
   }
 
@@ -809,7 +636,7 @@ function makeLostContextSimulatingCanvas(canvas) {
   function makeLostContextFunctionWrapper(ctx, functionName) {
     var f = ctx[functionName];
     return function() {
-      // log("calling:" + functionName);
+      // log('calling:' + functionName);
       // Only call the functions if the context is not lost.
       loseContextIfTime();
       if (!contextLost_) {
@@ -838,19 +665,6 @@ function makeLostContextSimulatingCanvas(canvas) {
         unwrappedContext_.deleteShader(resource);
       } else if (resource instanceof WebGLTexture) {
         unwrappedContext_.deleteTexture(resource);
-      }
-      else if (isWebGL2RenderingContext) {
-        if (resource instanceof WebGLQuery) {
-          unwrappedContext_.deleteQuery(resource);
-        } else if (resource instanceof WebGLSampler) {
-          unwrappedContext_.deleteSampler(resource);
-        } else if (resource instanceof WebGLSync) {
-          unwrappedContext_.deleteSync(resource);
-        } else if (resource instanceof WebGLTransformFeedback) {
-          unwrappedContext_.deleteTransformFeedback(resource);
-        } else if (resource instanceof WebGLVertexArrayObject) {
-          unwrappedContext_.deleteVertexArray(resource);
-        }
       }
     }
   }
@@ -896,22 +710,13 @@ function makeLostContextSimulatingCanvas(canvas) {
     };
 
     var creationFunctions = [
-      "createBuffer",
-      "createFramebuffer",
-      "createProgram",
-      "createRenderbuffer",
-      "createShader",
-      "createTexture"
+      'createBuffer',
+      'createFramebuffer',
+      'createProgram',
+      'createRenderbuffer',
+      'createShader',
+      'createTexture'
     ];
-    if (isWebGL2RenderingContext) {
-      creationFunctions.push(
-        "createQuery",
-        "createSampler",
-        "fenceSync",
-        "createTransformFeedback",
-        "createVertexArray"
-      );
-    }
     for (var ii = 0; ii < creationFunctions.length; ++ii) {
       var functionName = creationFunctions[ii];
       wrappedContext_[functionName] = function(f) {
@@ -929,39 +734,24 @@ function makeLostContextSimulatingCanvas(canvas) {
     }
 
     var functionsThatShouldReturnNull = [
-      "getActiveAttrib",
-      "getActiveUniform",
-      "getBufferParameter",
-      "getContextAttributes",
-      "getAttachedShaders",
-      "getFramebufferAttachmentParameter",
-      "getParameter",
-      "getProgramParameter",
-      "getProgramInfoLog",
-      "getRenderbufferParameter",
-      "getShaderParameter",
-      "getShaderInfoLog",
-      "getShaderSource",
-      "getTexParameter",
-      "getUniform",
-      "getUniformLocation",
-      "getVertexAttrib"
+      'getActiveAttrib',
+      'getActiveUniform',
+      'getBufferParameter',
+      'getContextAttributes',
+      'getAttachedShaders',
+      'getFramebufferAttachmentParameter',
+      'getParameter',
+      'getProgramParameter',
+      'getProgramInfoLog',
+      'getRenderbufferParameter',
+      'getShaderParameter',
+      'getShaderInfoLog',
+      'getShaderSource',
+      'getTexParameter',
+      'getUniform',
+      'getUniformLocation',
+      'getVertexAttrib'
     ];
-    if (isWebGL2RenderingContext) {
-      functionsThatShouldReturnNull.push(
-        "getInternalformatParameter",
-        "getQuery",
-        "getQueryParameter",
-        "getSamplerParameter",
-        "getSyncParameter",
-        "getTransformFeedbackVarying",
-        "getIndexedParameter",
-        "getUniformIndices",
-        "getActiveUniforms",
-        "getActiveUniformBlockParameter",
-        "getActiveUniformBlockName"
-      );
-    }
     for (var ii = 0; ii < functionsThatShouldReturnNull.length; ++ii) {
       var functionName = functionsThatShouldReturnNull[ii];
       wrappedContext_[functionName] = function(f) {
@@ -976,23 +766,14 @@ function makeLostContextSimulatingCanvas(canvas) {
     }
 
     var isFunctions = [
-      "isBuffer",
-      "isEnabled",
-      "isFramebuffer",
-      "isProgram",
-      "isRenderbuffer",
-      "isShader",
-      "isTexture"
+      'isBuffer',
+      'isEnabled',
+      'isFramebuffer',
+      'isProgram',
+      'isRenderbuffer',
+      'isShader',
+      'isTexture'
     ];
-    if (isWebGL2RenderingContext) {
-      isFunctions.push(
-        "isQuery",
-        "isSampler",
-        "isSync",
-        "isTransformFeedback",
-        "isVertexArray"
-      );
-    }
     for (var ii = 0; ii < isFunctions.length; ++ii) {
       var functionName = isFunctions[ii];
       wrappedContext_[functionName] = function(f) {
@@ -1040,43 +821,11 @@ function makeLostContextSimulatingCanvas(canvas) {
       return contextLost_;
     };
 
-    if (isWebGL2RenderingContext) {
-      wrappedContext_.getFragDataLocation = function(f) {
-        return function() {
-          loseContextIfTime();
-          if (contextLost_) {
-            return -1;
-          }
-          return f.apply(ctx, arguments);
-        };
-      }(wrappedContext_.getFragDataLocation);
-
-      wrappedContext_.clientWaitSync = function(f) {
-        return function() {
-          loseContextIfTime();
-          if (contextLost_) {
-            return wrappedContext_.WAIT_FAILED;
-          }
-          return f.apply(ctx, arguments);
-        };
-      }(wrappedContext_.clientWaitSync);
-
-      wrappedContext_.getUniformBlockIndex = function(f) {
-        return function() {
-          loseContextIfTime();
-          if (contextLost_) {
-            return wrappedContext_.INVALID_INDEX;
-          }
-          return f.apply(ctx, arguments);
-        };
-      }(wrappedContext_.getUniformBlockIndex);
-    }
-
     return wrappedContext_;
   }
 }
 
-return {
+export default {
   /**
    * Initializes this module. Safe to call more than once.
    * @param {!WebGLRenderingContext} ctx A WebGL context. If
@@ -1142,11 +891,11 @@ return {
    *
    *    function throwOnGLError(err, funcName, args) {
    *      throw WebGLDebugUtils.glEnumToString(err) +
-   *            " was caused by call to " + funcName;
+   *            ' was caused by call to ' + funcName;
    *    };
    *
    *    ctx = WebGLDebugUtils.makeDebugContext(
-   *        canvas.getContext("webgl"), throwOnGLError);
+   *        canvas.getContext('webgl'), throwOnGLError);
    *
    * @param {!WebGLRenderingContext} ctx The webgl context to wrap.
    * @param {!function(err, funcName, args): void} opt_onErrorFunc The function
@@ -1190,6 +939,3 @@ return {
    */
   'resetToInitialState': resetToInitialState
 };
-
-}();
-
