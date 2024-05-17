@@ -1,7 +1,7 @@
 import { interpolate, turboColormapData } from "./colormap.js"
 import { bowyerWatson, Vector3, Vertex } from "./delaunay.js"
 import { Mat4 } from "./math.js"
-import { MoodyReport, SurfacePlate, roundTo } from "./moody.js"
+import { getNumberOfStations, MoodyReport, SurfacePlate, roundTo } from "./moody.js"
 import WebGLDebugUtils from "./webgl-debug.js"
 
 // Moody's original paper states 48x78 which is a non-standard size. It is most likely a typo. Bruce Allen's corrections paper states:
@@ -27,6 +27,7 @@ const moodyData =  [
 
 const lines = [ "topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter", "southPerimeter",
   "westPerimeter", "horizontalCenter", "verticalCenter"]
+
 window.addEventListener('DOMContentLoaded', () => {
   // FIXME: This is just for testing - so we don't have to type in the values each time.
   document.getElementById("plateHeight").value = moodySurfacePlateHeightInches
@@ -47,7 +48,6 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById("createTables").addEventListener("click", () => {
     createTables()
   })
-
 })
 
 // Creates the tables for each line (along with its' own table graphic) and adds to the DOM.
@@ -166,17 +166,6 @@ function createTableGraphic(surfacePlate) {
   document.getElementById('verticalCenterLine').setAttribute("d", `M ${surfacePlatePercentWidth / 2} ${yInset} L ${surfacePlatePercentWidth / 2} ${surfacePlatePercentHeight - yInset}`)
 }
 
-// Returns the number of stations for the given line.
-function getNumberOfStations(line, surfacePlate) {
-  if (line.endsWith('Diagonal')) {
-    return surfacePlate.suggestedNumberOfDiagonalStations
-  } else if (line.startsWith('north') || line.startsWith('south') || line.startsWith('horizontal')) {
-    return surfacePlate.suggestedNumberOfHorizontalStations
-  } else {
-    return surfacePlate.suggestedNumberOfVerticalStations
-  }
-}
-
 // Recalculates the values by creating a new MoodyReport and updates the table cell values accordingly.
 function refreshTables(event, lines, surfacePlate) {
   // One of the autocollimator readings have changed - so recalculate everything (by making a new MoodyReport).
@@ -198,17 +187,7 @@ function refreshTables(event, lines, surfacePlate) {
       const overallFlatness = (Math.max(...allZPositions) - Math.min(...allZPositions)) * 1000000 // Convert inches to microinches.
       document.getElementById("overallFlatness").value = overallFlatness
       document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }))
-      /*
-      const allXPositions = moodyReport.vertices().map(point => point[0])
-      const allYPositions = moodyReport.vertices().map(point => point[1])
 
-      console.log(allXPositions)
-      console.log(allYPositions)
-      console.log("EXCEL CSV:\r\n")
-      for (let i = 0; i < allXPositions.length; i++) {
-        console.log(allXPositions[i] + ", " + allYPositions[i])
-      }
-      */
       let tableModelMatrix = Mat4.create()
       initialize3DTableGraphic(moodyReport, tableModelMatrix)
 
@@ -277,12 +256,18 @@ let showHeatmap = true
 let lightingOn = true
 
 function mapToSphere(dx, dy, canvas) {
-  const x = (2 * event.clientX - canvas.width) / canvas.width
-  const y = (canvas.height - 2 * event.clientY) / canvas.height
+  // Let radius = 1, so radius * radius = 1.
+  const res = Math.min(canvas.width, canvas.height) - 1
+  const x = (2 * dx - canvas.width - 1) / res
+  const y = (2 * dy - canvas.height - 1) / res
   const z = 0.0
   const length = Math.sqrt(dx * dx + dy * dy)
-  const d = length < 1.0 ? length : 1.0
-  return new Vector3(x, y, Math.sqrt(1.001 - d * d)).norm()
+  // Map to sphere when x^2 + y^2 <= r^2 / 2 otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
+  if (2 * length <= 1) {
+    return new Vector3(x, y, Math.sqrt(1 - length)).norm()
+  } else {
+    return new Vector3(x, y, (1 / 2) / Math.sqrt(length)).norm()
+  }
 }
 
 function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
@@ -315,13 +300,14 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
 
   document.onmouseup = () => { lastMappedPosition = null }
 
-  document.onmousemove = () => {
+  document.onmousemove = event => {
     if (lastMappedPosition) {
       // With the current rotation behavior the original mouse point that started the rotation acts as the origin
       // point, and so dragging away from it rotates the table according to the mouse direction and then going back
       // to that point resets to the original rotation - but if you go past the origin point in the other direction
       // it rotates slower...why is that?
-      // Map mouse displacement onto virtual sphere.
+
+      // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
       const direction = new Vector3(mapped.x - lastMappedPosition.x, mapped.y - lastMappedPosition.y, 0)
       const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y)
@@ -352,10 +338,11 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     const direction = event.deltaY < 0 ? 1 : -1
     const zoomFactor = 1 + direction * 0.1
     if (cumulativeZoomFactor < 0.16 || cumulativeZoomFactor > 10) {
-      // Max zoom level reached, don't zoom anymore.
+      // Max zoom level reached, don't zoom any more.
       return
     }
     cumulativeZoomFactor *= zoomFactor
+    // TODO: Keep zoom centered at mouse cursor.
     const scaleMatrix = Mat4.create()
     scaleMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
     tableModelMatrix.multiply(scaleMatrix)
@@ -649,7 +636,8 @@ function getPositionBuffer(gl, moodyReport, zMultiplier) {
     triangle.v1.x, triangle.v1.y, triangle.v1.z,
     triangle.v2.x, triangle.v2.y, triangle.v2.z]).flat(1)
 
-  // FIXME: We want the line to always be on top of the surface but it can dip underneath it at extreme points.
+  // FIXME: We want the line to always be on top of the surface but it can dip underneath it at extreme points. Adding 0.1 to z-coordinate is not good enough.
+  // We need to calculate the slope from point x -> y and use it to find amount to add so line is always on top.
   const positions = new Float32Array(
     moodyReport.vertices(zMultiplier).map(v => [v[0], v[1], v[2] + 0.1]).flat(1) // "Union jack" colored lines.
     .concat(triangulatedVertices))

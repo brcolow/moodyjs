@@ -480,4 +480,15 @@ class MoodyReport {
   }
 }
 
-export { MoodyReport, SurfacePlate, roundTo }
+// Returns the number of stations for the given line.
+function getNumberOfStations(line, surfacePlate) {
+  if (line.endsWith('Diagonal')) {
+    return surfacePlate.suggestedNumberOfDiagonalStations
+  } else if (line.startsWith('north') || line.startsWith('south') || line.startsWith('horizontal')) {
+    return surfacePlate.suggestedNumberOfHorizontalStations
+  } else {
+    return surfacePlate.suggestedNumberOfVerticalStations
+  }
+}
+
+export { getNumberOfStations, MoodyReport, SurfacePlate, roundTo }
