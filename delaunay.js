@@ -21,8 +21,16 @@ class Vector3 {
     }
   
     norm() {
-      const length = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z)
+      const length = this.length()
       return new Vector3(this.x / length, this.y / length, this.z / length)
+    }
+
+    scale(a) {
+      return this.x * a + this.y * a + this.z * a
+    }
+
+    length() {
+      return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z)
     }
 }
   

@@ -302,17 +302,14 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
 
   document.onmousemove = event => {
     if (lastMappedPosition) {
-      // With the current rotation behavior the original mouse point that started the rotation acts as the origin
-      // point, and so dragging away from it rotates the table according to the mouse direction and then going back
-      // to that point resets to the original rotation - but if you go past the origin point in the other direction
-      // it rotates slower...why is that?
-
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
       const direction = new Vector3(mapped.x - lastMappedPosition.x, mapped.y - lastMappedPosition.y, 0)
-      const length = Math.sqrt(direction.x * direction.x + direction.y * direction.y)
-      // Determine rotation axis.
       const axis = lastMappedPosition.cross(mapped)
+      const angle = Math.sign(direction.dot(lastMappedPosition)) * calculateRotationAngle(mapped, lastMappedPosition)
+
+      // Determine rotation axis.
+      // const axis = lastMappedPosition.cross(mapped)
 
       const newRotationMatrix = Mat4.create()
       // TODO: Cache these vertices for a given zMultiplier (memoize).
@@ -326,11 +323,25 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       // Axis is a unit vector from the origin (bottom-left corner of surface plate) in the direction the mouse travelled.
       // We need it to be a unit vector from the center of the surface plate instead.
       newRotationMatrix.translate([(maxX - minX) / 2, (maxY - minY) / 2, (maxZ - minZ) / 2])
-      newRotationMatrix.rotate(length, [axis.x, 0, axis.y])
+      newRotationMatrix.rotate(angle, [axis.x, 0, axis.y])
       newRotationMatrix.translate([-((maxX - minX) / 2), -((maxY - minY) / 2), -((maxZ - minZ) / 2)])
       tableModelMatrix.multiply(newRotationMatrix)
       lastMappedPosition = mapped
     }
+  }
+
+  function calculateRotationAngle(v1, v2) {
+    // Normalize vectors for robustness
+    const normalizedV1 = v1.norm()
+    const normalizedV2 = v2.norm()
+  
+    // Calculate cosine of the angle between vectors
+    const cosTheta = normalizedV1.dot(normalizedV2)
+  
+    // Handle potential rounding errors for near-zero cosine values
+    const theta = Math.acos(Math.min(Math.abs(cosTheta), 1))
+  
+    return theta
   }
 
   canvas.onwheel = event => {
