@@ -247,6 +247,7 @@ function refreshTables(event, lines, surfacePlate) {
 }
 
 const keyMap = []
+const boundingBoxCache = []
 let lastMappedPosition = null
 let cumulativeZoomFactor = 1
 let zMultiplier = -1
@@ -255,14 +256,13 @@ let showLines = true
 let showHeatmap = true
 let lightingOn = true
 
-function mapToSphere(dx, dy, canvas) {
+function mapToSphere(mouseX, mouseY, canvas) {
   // Let radius = 1, so radius * radius = 1.
   const res = Math.min(canvas.width, canvas.height) - 1
-  const x = (2 * dx - canvas.width - 1) / res
-  const y = (2 * dy - canvas.height - 1) / res
-  const z = 0.0
-  const length = Math.sqrt(dx * dx + dy * dy)
-  // Map to sphere when x^2 + y^2 <= r^2 / 2 otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
+  const x = (2 * mouseX - canvas.width - 1) / res
+  const y = (2 * mouseY - canvas.height - 1) / res
+  const length = Math.sqrt(x * x + y * y)
+  // Map to sphere when x^2 + y^2 <= r^2 / 2 - otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
   if (2 * length <= 1) {
     return new Vector3(x, y, Math.sqrt(1 - length)).norm()
   } else {
@@ -287,6 +287,9 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
 
   document.querySelector("#zMultiplier").addEventListener("input", event => {
     zMultiplier = event.target.value
+    if (!(zMultiplier in boundingBoxCache)) {
+      boundingBoxCache[zMultiplier] = getBoundingBox()
+    }
     buffers = getBuffers(gl, moodyReport, zMultiplier)
   })
 
@@ -305,29 +308,36 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
       const direction = new Vector3(mapped.x - lastMappedPosition.x, mapped.y - lastMappedPosition.y, 0)
+      // Determine rotation axis.
       const axis = lastMappedPosition.cross(mapped)
+      // Determine rotation angle.
       const angle = Math.sign(direction.dot(lastMappedPosition)) * calculateRotationAngle(mapped, lastMappedPosition)
 
-      // Determine rotation axis.
-      // const axis = lastMappedPosition.cross(mapped)
-
       const newRotationMatrix = Mat4.create()
-      // TODO: Cache these vertices for a given zMultiplier (memoize).
-      const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
-      const minX = Math.min(...vertices.map(vertex => vertex.x))
-      const maxX = Math.max(...vertices.map(vertex => vertex.x))
-      const minY = Math.min(...vertices.map(vertex => vertex.y))
-      const maxY = Math.max(...vertices.map(vertex => vertex.y))
-      const minZ = Math.min(...vertices.map(vertex => vertex.z))
-      const maxZ = Math.max(...vertices.map(vertex => vertex.z))
+      
       // Axis is a unit vector from the origin (bottom-left corner of surface plate) in the direction the mouse travelled.
       // We need it to be a unit vector from the center of the surface plate instead.
-      newRotationMatrix.translate([(maxX - minX) / 2, (maxY - minY) / 2, (maxZ - minZ) / 2])
-      newRotationMatrix.rotate(angle, [axis.x, 0, axis.y])
-      newRotationMatrix.translate([-((maxX - minX) / 2), -((maxY - minY) / 2), -((maxZ - minZ) / 2)])
+      newRotationMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      newRotationMatrix.rotate(angle, [axis.x, axis.y, 0])
+      newRotationMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
+        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
+        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
       tableModelMatrix.multiply(newRotationMatrix)
       lastMappedPosition = mapped
     }
+  }
+
+  function getBoundingBox() {
+    const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
+    const minX = Math.min(...vertices.map(vertex => vertex.x))
+    const maxX = Math.max(...vertices.map(vertex => vertex.x))
+    const minY = Math.min(...vertices.map(vertex => vertex.y))
+    const maxY = Math.max(...vertices.map(vertex => vertex.y))
+    const minZ = Math.min(...vertices.map(vertex => vertex.z))
+    const maxZ = Math.max(...vertices.map(vertex => vertex.z))
+    return { "minX": minX, "maxX": maxX, "minY": minY, "maxY": maxY, "minZ": minZ, "maxZ": maxZ }
   }
 
   function calculateRotationAngle(v1, v2) {
@@ -426,6 +436,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   buffers = getBuffers(gl, moodyReport, zMultiplier)
 
   function render() {
+    boundingBoxCache[zMultiplier] = getBoundingBox()
     drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix, texture)
     requestAnimationFrame(render)
   }
