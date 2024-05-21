@@ -11,7 +11,11 @@ class Vector3 {
         this.z * v.x - this.x * v.z,
         this.x * v.y - this.y * v.x)
     }
-  
+
+    add(v) {
+      return new Vector3(this.x + v.x, this.y + v.y, this.z + v.z)
+    } 
+
     minus(v) {
       return new Vector3(this.x - v.x, this.y - v.y, this.z - v.z)
     } 
@@ -26,11 +30,17 @@ class Vector3 {
     }
 
     scale(a) {
-      return this.x * a + this.y * a + this.z * a
+      return new Vector3(this.x * a, this.y * a, this.z * a)
     }
 
     length() {
       return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z)
+    }
+
+    project(v) {
+      const rayDirection = v.norm()
+      const dot = this.dot(rayDirection)
+      return rayDirection.scale(dot).add(this)
     }
 }
   

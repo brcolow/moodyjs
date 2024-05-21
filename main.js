@@ -264,9 +264,9 @@ function mapToSphere(mouseX, mouseY, canvas) {
   const length = Math.sqrt(x * x + y * y)
   // Map to sphere when x^2 + y^2 <= r^2 / 2 - otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
   if (2 * length <= 1) {
-    return new Vector3(x, y, Math.sqrt(1 - length)).norm()
+    return new Vector3(x, y, Math.sqrt(1 - length * length)).norm()
   } else {
-    return new Vector3(x, y, (1 / 2) / Math.sqrt(length)).norm()
+    return new Vector3(x, y, Math.atan(length) / Math.PI * 0.5).norm()
   }
 }
 
@@ -304,9 +304,17 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   document.onmouseup = () => { lastMappedPosition = null }
 
   document.onmousemove = event => {
+    // Rotation is still a bit weird...it seems like z-axis rotations somehow creep in. I wonder if maybe the table surface is not actually
+    // aligned with the 3 coordinate axes like we think? Need to draw the axes and check this.
     if (lastMappedPosition) {
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
+
+      const threshold = 0.05 // Adjust threshold for desired sensitivity.
+      if (Math.abs(mapped.x - lastMappedPosition.x) <= threshold && Math.abs(mapped.y - lastMappedPosition.y) <= threshold) {
+        return
+      }
+
       const direction = new Vector3(mapped.x - lastMappedPosition.x, mapped.y - lastMappedPosition.y, 0)
       // Determine rotation axis.
       const axis = lastMappedPosition.cross(mapped)
