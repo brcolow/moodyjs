@@ -306,6 +306,10 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   document.onmousemove = event => {
     // Rotation is still a bit weird...it seems like z-axis rotations somehow creep in. I wonder if maybe the table surface is not actually
     // aligned with the 3 coordinate axes like we think? Need to draw the axes and check this.
+    // Look at:
+    // https://stackoverflow.com/questions/37903979/set-an-objects-absolute-rotation-around-the-world-axis
+    // https://gamedev.stackexchange.com/questions/136174/im-rotating-an-object-on-two-axes-so-why-does-it-keep-twisting-around-the-thir
+    
     if (lastMappedPosition) {
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
@@ -407,6 +411,60 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     if (keyMap['s'] === true) {
       // translateMatrix.rotate(0.1, [0.0, 0.0, 1.0])
       translateMatrix.translate([0.0, 0.0, 1.0])
+    }
+    if (keyMap['a'] === true) {
+      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      translateMatrix.rotate(0.01, [0.0, 0.0, -1.0])
+      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
+        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
+        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+    }
+    if (keyMap['d'] === true) {
+      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      translateMatrix.rotate(0.01, [0.0, 0.0, 1.0])
+      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
+        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
+        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+    }
+    if (keyMap['z'] === true) {
+      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      translateMatrix.rotate(0.01, [0.0, -1.0, 0.0])
+      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
+        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
+        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+    }
+    if (keyMap['x'] === true) {
+      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      translateMatrix.rotate(0.01, [0.0, 1.0, 0.0])
+      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
+        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
+        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+    }
+    if (keyMap['c'] === true) {
+      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      translateMatrix.rotate(0.01, [-1.0, 0.0, 0.0])
+      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
+        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
+        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+    }
+    if (keyMap['v'] === true) {
+      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      translateMatrix.rotate(0.01, [1.0, 0.0, 0.0])
+      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
+        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
+        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
     }
     tableModelMatrix.multiply(translateMatrix)
   }
