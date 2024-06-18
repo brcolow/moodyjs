@@ -110,8 +110,8 @@ function createTables() {
       readingInput.pattern = "[0-9]*[.,]{0,1}[0-9]*"
       readingInput.id = line + "Table" + i
       readingInput.classList.add("readingInput", line + "ReadingInput")
-      readingInput.addEventListener("input", event => {
-        refreshTables(event, lines, surfacePlate)
+      readingInput.addEventListener("input", () => {
+        refreshTables(lines, surfacePlate)
       })
       row.insertCell().appendChild(readingInput)
     }
@@ -167,7 +167,7 @@ function createTableGraphic(surfacePlate) {
 }
 
 // Recalculates the values by creating a new MoodyReport and updates the table cell values accordingly.
-function refreshTables(event, lines, surfacePlate) {
+function refreshTables(lines, surfacePlate) {
   // One of the autocollimator readings have changed - so recalculate everything (by making a new MoodyReport).
   const readingInputs = document.getElementsByClassName("readingInput")
   if (readingInputs.length > 0) {
@@ -270,6 +270,17 @@ function mapToSphere(mouseX, mouseY, canvas) {
   }
 }
 
+function getBoundingBox(moodyReport) {
+  const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
+  const minX = Math.min(...vertices.map(vertex => vertex.x))
+  const maxX = Math.max(...vertices.map(vertex => vertex.x))
+  const minY = Math.min(...vertices.map(vertex => vertex.y))
+  const maxY = Math.max(...vertices.map(vertex => vertex.y))
+  const minZ = Math.min(...vertices.map(vertex => vertex.z))
+  const maxZ = Math.max(...vertices.map(vertex => vertex.z))
+  return { "minX": minX, "maxX": maxX, "minY": minY, "maxY": maxY, "minZ": minZ, "maxZ": maxZ }
+}
+
 function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   const canvas = document.getElementById("glcanvas")
   // const gl = canvas.getContext("webgl2")
@@ -288,7 +299,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   document.querySelector("#zMultiplier").addEventListener("input", event => {
     zMultiplier = event.target.value
     if (!(zMultiplier in boundingBoxCache)) {
-      boundingBoxCache[zMultiplier] = getBoundingBox()
+      boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
     }
     buffers = getBuffers(gl, moodyReport, zMultiplier)
   })
@@ -304,12 +315,12 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   document.onmouseup = () => { lastMappedPosition = null }
 
   document.onmousemove = event => {
-    // Rotation is still a bit weird...it seems like z-axis rotations somehow creep in. I wonder if maybe the table surface is not actually
+    // Rotation is still weird...it seems like z-axis rotations somehow creep in. I wonder if maybe the table surface is not actually
     // aligned with the 3 coordinate axes like we think? Need to draw the axes and check this.
     // Look at:
     // https://stackoverflow.com/questions/37903979/set-an-objects-absolute-rotation-around-the-world-axis
     // https://gamedev.stackexchange.com/questions/136174/im-rotating-an-object-on-two-axes-so-why-does-it-keep-twisting-around-the-thir
-    
+
     if (lastMappedPosition) {
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
@@ -339,17 +350,6 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       tableModelMatrix.multiply(newRotationMatrix)
       lastMappedPosition = mapped
     }
-  }
-
-  function getBoundingBox() {
-    const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
-    const minX = Math.min(...vertices.map(vertex => vertex.x))
-    const maxX = Math.max(...vertices.map(vertex => vertex.x))
-    const minY = Math.min(...vertices.map(vertex => vertex.y))
-    const maxY = Math.max(...vertices.map(vertex => vertex.y))
-    const minZ = Math.min(...vertices.map(vertex => vertex.z))
-    const maxZ = Math.max(...vertices.map(vertex => vertex.z))
-    return { "minX": minX, "maxX": maxX, "minY": minY, "maxY": maxY, "minZ": minZ, "maxZ": maxZ }
   }
 
   function calculateRotationAngle(v1, v2) {
@@ -405,11 +405,9 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       translateMatrix.translate([1.0, 0.0, 0.0])
     }
     if (keyMap['w'] === true) {
-      // translateMatrix.rotate(0.1, [0.0, 0.0, -1.0])
       translateMatrix.translate([0.0, 0.0, -1.0])
     }
     if (keyMap['s'] === true) {
-      // translateMatrix.rotate(0.1, [0.0, 0.0, 1.0])
       translateMatrix.translate([0.0, 0.0, 1.0])
     }
     if (keyMap['a'] === true) {
@@ -502,7 +500,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   buffers = getBuffers(gl, moodyReport, zMultiplier)
 
   function render() {
-    boundingBoxCache[zMultiplier] = getBoundingBox()
+    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
     drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix, texture)
     requestAnimationFrame(render)
   }
@@ -526,12 +524,10 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
 
   projectionMatrix.perspective(fieldOfView, aspect, zNear, zFar)
 
-  const modelMatrix = Mat4.create()
-  modelMatrix.multiply(tableModelMatrix)
-
   const viewMatrix = Mat4.create()
-  // FIXME: Don't use magic numbers. Something like maxX - minX / 2 (for x and y) and maybe 8-10 times table z-height.
-  viewMatrix.translate([-35.0, -24.0, -70.0])
+  viewMatrix.translate([-(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+    -(boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+    -(boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) * 8])
 
   setPositionAttribute(gl, buffers, programInfo)
   setNormalAttribute(gl, buffers, programInfo)
@@ -549,7 +545,7 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
   let lightPower = document.getElementById("lightPower").value
 
   gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
-  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, modelMatrix)
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, tableModelMatrix)
   gl.uniformMatrix4fv(programInfo.uniformLocations.viewMatrix, false, viewMatrix)
   gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix)
   gl.uniform3fv(programInfo.uniformLocations.lightPos, lightPos)
@@ -755,19 +751,18 @@ function getPositionBuffer(gl, moodyReport, zMultiplier) {
   const lineTextureCoords = moodyReport.vertices(zMultiplier).map(v => [0.0, 1.0]).flat(1)
 
   // TODO: Cache these vertices for a given zMultiplier.
-  const minX = Math.min(...vertices.map(vertex => vertex.x))
-  const maxX = Math.max(...vertices.map(vertex => vertex.x))
-  const minY = Math.min(...vertices.map(vertex => vertex.y))
-  const maxY = Math.max(...vertices.map(vertex => vertex.y))
-  const tableSurfaceRatio = (maxY - minY) / (maxX - minX)
+  if (!(zMultiplier in boundingBoxCache)) {
+    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
+  }
+  const tableSurfaceRatio = (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX)
   const numRepeatsX = 1
   const numRepeatsY = numRepeatsX * tableSurfaceRatio
   //  Map [minX, maxX] => [0, 1] and [minY, maxY] => [0, 1]
   // (val - A) * (b - a) / (B - A) + a
   const triangleTextureCoords = triangulation.map((triangle, index) => [
-    ((triangle.v0.x - maxX) * (numRepeatsX + 1)) / (maxX - minX), ((triangle.v0.y - maxY) * (numRepeatsY + 1)) / (maxY - minY),
-    ((triangle.v1.x - maxX) * (numRepeatsX + 1)) / (maxX - minX), ((triangle.v1.y - maxY) * (numRepeatsY + 1)) / (maxY - minY),
-    ((triangle.v2.x - maxX) * (numRepeatsX + 1)) / (maxX - minX), ((triangle.v2.y - maxY) * (numRepeatsY + 1)) / (maxY - minY),]
+    ((triangle.v0.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX  - boundingBoxCache[zMultiplier].minX), ((triangle.v0.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
+    ((triangle.v1.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].maxX), ((triangle.v1.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
+    ((triangle.v2.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX), ((triangle.v2.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),]
   ).flat(1)
 
   const textureCoordinates = new Float32Array(lineTextureCoords.concat(triangleTextureCoords))
