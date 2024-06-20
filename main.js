@@ -259,9 +259,10 @@ let lightingOn = true
 function mapToSphere(mouseX, mouseY, canvas) {
   // Let radius = 1, so radius * radius = 1.
   const res = Math.min(canvas.width, canvas.height) - 1
-  const x = (2 * mouseX - canvas.width - 1) / res
-  const y = (2 * mouseY - canvas.height - 1) / res
+  const x = (2 * (mouseX - boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX / 2) - canvas.width - 1) / res
+  const y = (2 * (mouseY - boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY / 2) - canvas.height - 1) / res
   const length = Math.sqrt(x * x + y * y)
+
   // Map to sphere when x^2 + y^2 <= r^2 / 2 - otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
   if (2 * length <= 1) {
     return new Vector3(x, y, Math.sqrt(1 - length * length)).norm()
@@ -325,15 +326,18 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
 
-      const threshold = 0.05 // Adjust threshold for desired sensitivity.
+      const threshold = 0.02 // Adjust threshold for desired sensitivity.
       if (Math.abs(mapped.x - lastMappedPosition.x) <= threshold && Math.abs(mapped.y - lastMappedPosition.y) <= threshold) {
         return
       }
 
-      const direction = new Vector3(mapped.x - lastMappedPosition.x, mapped.y - lastMappedPosition.y, 0)
       // Determine rotation axis.
-      const axis = lastMappedPosition.cross(mapped)
+      const axis = new Vector3(lastMappedPosition.cross(mapped).x, lastMappedPosition.cross(mapped).y, 0)
+      
+      console.log(axis)
+
       // Determine rotation angle.
+      const direction = new Vector3(mapped.x - lastMappedPosition.x, mapped.y - lastMappedPosition.y, 0)
       const angle = Math.sign(direction.dot(lastMappedPosition)) * calculateRotationAngle(mapped, lastMappedPosition)
 
       const newRotationMatrix = Mat4.create()
@@ -561,48 +565,46 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
   gl.uniform1i(programInfo.uniformLocations.showHeatmap, showHeatmap)
   gl.uniform1i(programInfo.uniformLocations.lightingOn, lightingOn)
 
-  {
-    let offset = 0
-    let vertexCount = moodyReport.topStartingDiagonalTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  let offset = 0
+  let vertexCount = moodyReport.topStartingDiagonalTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.bottomStartingDiagonalTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.bottomStartingDiagonalTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.northPerimeterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.northPerimeterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.eastPerimeterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.eastPerimeterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.southPerimeterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.southPerimeterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.westPerimeterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.westPerimeterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.horizontalCenterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.horizontalCenterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.verticalCenterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.verticalCenterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = buffers.triangleVertices.length
-    gl.drawArrays(gl.TRIANGLES, offset, vertexCount / 3)
+  offset += vertexCount
+  vertexCount = buffers.triangleVertices.length
+  gl.drawArrays(gl.TRIANGLES, offset, vertexCount / 3)
 
-    gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, Mat4.create())
-    offset += vertexCount / 3
-    vertexCount = 6
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
-  }
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, Mat4.create())
+  offset += vertexCount / 3
+  vertexCount = 6
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 }
 
 const vsSource = `#version 300 es
@@ -814,9 +816,9 @@ function getColorBuffer(gl, moodyReport, triangleVertices) {
     .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.749019607843137, 0.8470588235294118, 1.0]).flat(1))
     .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
     .concat(colorMappedZValues.flat(1)) // Add color mapped colors for the triangles z-value.
-    .concat(1, 0, 0, 1, 	1, 0.6, 0, 1,
-			      0, 1, 0, 1, 	0.6, 1, 0, 1,
-			      0, 0, 1, 1, 	0, 0.6, 1, 1) // Add colors for axes lines.
+    .concat(1, 1, 1, 1, 	1, 0, 0, 1,
+			      1, 1, 1, 1, 	0, 1, 0, 1,
+			      1, 1, 1, 1, 	0, 0, 1, 1) // Add colors for axes lines.
 
   console.log("Color buffer size: " + colors.length / 4)
   const colorBuffer = gl.createBuffer()
