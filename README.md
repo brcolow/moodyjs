@@ -95,7 +95,6 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 * Allow for "importing" a number set (maybe from a CSV file or a textarea with a simple format). 
 * Fix the way that some measuring lines are cut off on the 3D representation (this happens because the vertices are located at the first foot location).
 * Make zooming relative to where the mouse cursor is (keep the mouse centered on zoom).
-* Fix rotation to the right of the screen.
 
 ## Developer Notes
 

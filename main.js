@@ -1,6 +1,6 @@
 import { interpolate, turboColormapData } from "./colormap.js"
-import { bowyerWatson, Vector3, Vertex } from "./delaunay.js"
-import { Mat4 } from "./math.js"
+import { bowyerWatson, Vertex } from "./delaunay.js"
+import { Mat4, Quat, Vector3 } from "./math.js"
 import { getNumberOfStations, MoodyReport, SurfacePlate, roundTo } from "./moody.js"
 import WebGLDebugUtils from "./webgl-debug.js"
 
@@ -188,8 +188,7 @@ function refreshTables(lines, surfacePlate) {
       document.getElementById("overallFlatness").value = overallFlatness
       document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }))
 
-      let tableModelMatrix = Mat4.create()
-      initialize3DTableGraphic(moodyReport, tableModelMatrix)
+      initialize3DTableGraphic(moodyReport)
 
       lines.forEach(l => {
         Array.from(document.getElementById(l + "Table").getElementsByTagName("tbody")[0].rows).forEach((tableRow, index) => {
@@ -248,25 +247,31 @@ function refreshTables(lines, surfacePlate) {
 
 const keyMap = []
 const boundingBoxCache = []
-let lastMappedPosition = null
+let startVectorMapped = null
 let cumulativeZoomFactor = 1
 let zMultiplier = -1
 let buffers = null
 let showLines = true
 let showHeatmap = true
 let lightingOn = true
+let tableRotationMatrix = Mat4.create()
+let tableScaleMatrix = Mat4.create()
+let tableTranslateMatrix = Mat4.create()
+let initialTableRotation = Mat4.create()
 
 function mapToSphere(mouseX, mouseY, canvas) {
-  // Let radius = 1, so radius * radius = 1.
-  const res = Math.min(canvas.width, canvas.height) - 1
-  const x = (2 * mouseX - canvas.width - 1) / res
-  const y = (2 * mouseY - canvas.height - 1) / res
-  const length = Math.sqrt(x * x + y * y)
+  const radius = 3
+  const res = Math.max(canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height) - 1
+  const x = (2 * (mouseX - canvas.getBoundingClientRect().x) - canvas.getBoundingClientRect().width - 1) / res
+  const y = (2 * (mouseY - canvas.getBoundingClientRect().y) - canvas.getBoundingClientRect().height - 1) / res
+  const lengthSquared = x * x + y * y
+
+  console.log(lengthSquared)
   // Map to sphere when x^2 + y^2 <= r^2 / 2 - otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
-  if (2 * length <= 1) {
-    return new Vector3(x, y, Math.sqrt(1 - length * length)).norm()
+  if (2 * lengthSquared <= radius * radius) {
+    return new Vector3(x, y, Math.sqrt((radius * radius) - lengthSquared))
   } else {
-    return new Vector3(x, y, Math.atan(length) / Math.PI * 0.5).norm()
+    return new Vector3(x, y, ((radius * radius) / 2) / Math.sqrt(lengthSquared))
   }
 }
 
@@ -281,7 +286,7 @@ function getBoundingBox(moodyReport) {
   return { "minX": minX, "maxX": maxX, "minY": minY, "maxY": maxY, "minZ": minZ, "maxZ": maxZ }
 }
 
-function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
+function initialize3DTableGraphic(moodyReport) {
   const canvas = document.getElementById("glcanvas")
   // const gl = canvas.getContext("webgl2")
   const gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"))
@@ -309,61 +314,43 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   document.getElementById("lightingOn").addEventListener("change", event => lightingOn = event.target.checked)
 
   canvas.onmousedown = event => {
-    lastMappedPosition = mapToSphere(event.clientX, event.clientY, canvas)
+    startVectorMapped = mapToSphere(event.clientX, event.clientY, canvas)
+    initialTableRotation = tableRotationMatrix
   }
 
-  document.onmouseup = () => { lastMappedPosition = null }
+  document.onmouseup = () => { 
+    startVectorMapped = null 
+    initialTableRotation = tableRotationMatrix
+  }
 
   document.onmousemove = event => {
-    // Rotation is still weird...it seems like z-axis rotations somehow creep in. I wonder if maybe the table surface is not actually
-    // aligned with the 3 coordinate axes like we think? Need to draw the axes and check this.
-    // Look at:
-    // https://stackoverflow.com/questions/37903979/set-an-objects-absolute-rotation-around-the-world-axis
-    // https://gamedev.stackexchange.com/questions/136174/im-rotating-an-object-on-two-axes-so-why-does-it-keep-twisting-around-the-thir
+    // http://hjemmesider.diku.dk/~kash/papers/DSAGM2002_henriksen.pdf
+    // https://graphicsinterface.org/wp-content/uploads/gi1992-18.pdf
 
-    if (lastMappedPosition) {
+    if (startVectorMapped) {
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
-      const mapped = mapToSphere(event.clientX, event.clientY, canvas)
+      const currentVectorMapped = mapToSphere(event.clientX, event.clientY, canvas)
 
-      const threshold = 0.05 // Adjust threshold for desired sensitivity.
-      if (Math.abs(mapped.x - lastMappedPosition.x) <= threshold && Math.abs(mapped.y - lastMappedPosition.y) <= threshold) {
-        return
+      // Determine rotation axis.
+      const axis = startVectorMapped.cross(currentVectorMapped)
+      let rotationQuat = Quat.identity()
+
+      if (axis.magnitude > 0.000001) {
+        rotationQuat = new Quat(startVectorMapped.dot(currentVectorMapped), axis[0], -axis[1], 0)
       }
 
-      const direction = new Vector3(mapped.x - lastMappedPosition.x, mapped.y - lastMappedPosition.y, 0)
-      // Determine rotation axis.
-      const axis = lastMappedPosition.cross(mapped)
-      // Determine rotation angle.
-      const angle = Math.sign(direction.dot(lastMappedPosition)) * calculateRotationAngle(mapped, lastMappedPosition)
-
-      const newRotationMatrix = Mat4.create()
-      
-      // Axis is a unit vector from the origin (bottom-left corner of surface plate) in the direction the mouse travelled.
-      // We need it to be a unit vector from the center of the surface plate instead.
-      newRotationMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
-        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
-        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
-      newRotationMatrix.rotate(angle, [axis.x, axis.y, 0])
-      newRotationMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
-        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
-        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
-      tableModelMatrix.multiply(newRotationMatrix)
-      lastMappedPosition = mapped
+      tableRotationMatrix = Mat4.create()
+      // Save the rotation between successive drags.
+      tableRotationMatrix.multiply(initialTableRotation)
+      // We want rotation to be centered on the center of the table.
+      tableRotationMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
+      (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
+      (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      tableRotationMatrix.multiply(rotationQuat.toMatrix4())
+      tableRotationMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
+      -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
+      -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
     }
-  }
-
-  function calculateRotationAngle(v1, v2) {
-    // Normalize vectors for robustness
-    const normalizedV1 = v1.norm()
-    const normalizedV2 = v2.norm()
-  
-    // Calculate cosine of the angle between vectors
-    const cosTheta = normalizedV1.dot(normalizedV2)
-  
-    // Handle potential rounding errors for near-zero cosine values
-    const theta = Math.acos(Math.min(Math.abs(cosTheta), 1))
-  
-    return theta
   }
 
   canvas.onwheel = event => {
@@ -376,9 +363,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     }
     cumulativeZoomFactor *= zoomFactor
     // TODO: Keep zoom centered at mouse cursor.
-    const scaleMatrix = Mat4.create()
-    scaleMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
-    tableModelMatrix.multiply(scaleMatrix)
+    tableScaleMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
   }
 
   // Pretty weird hack that allows the canvas to be focused and thus receive keydown events.
@@ -428,47 +413,7 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
         -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
         -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
     }
-    if (keyMap['z'] === true) {
-      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
-        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
-        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
-      translateMatrix.rotate(0.01, [0.0, -1.0, 0.0])
-      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
-        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
-        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
-    }
-    if (keyMap['x'] === true) {
-      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
-        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
-        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
-      translateMatrix.rotate(0.01, [0.0, 1.0, 0.0])
-      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
-        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
-        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
-    }
-    if (keyMap['c'] === true) {
-      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
-        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
-        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
-      translateMatrix.rotate(0.01, [-1.0, 0.0, 0.0])
-      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
-        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
-        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
-    }
-    if (keyMap['v'] === true) {
-      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
-        (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
-        (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
-      translateMatrix.rotate(0.01, [1.0, 0.0, 0.0])
-      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2), 
-        -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2), 
-        -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
-    }
-    if (keyMap['b'] === true) {
-      // Resets rotation.
-      tableModelMatrix = Mat4.create()
-    }
-    tableModelMatrix.multiply(translateMatrix)
+    tableTranslateMatrix.multiply(translateMatrix)
   }
 
   const texture = loadTexture(gl, "granite_2048x2048_compressed.png")
@@ -503,16 +448,43 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
   }
   buffers = getBuffers(gl, moodyReport, zMultiplier)
 
-  function render() {
+  function render(now) {
+    now *= 0.001
+    const deltaTime = now - then
+    then = now
+    const fps = 1 / deltaTime
+    fpsElem.textContent = fps.toFixed(1)
+
+    totalFPS += fps - (frameTimes[frameCursor] || 0)
+    frameTimes[frameCursor++] = fps
+    numFrames = Math.max(numFrames, frameCursor)
+    frameCursor %= maxFrames
+    const averageFPS = totalFPS / numFrames
+    avgElem.textContent = averageFPS.toFixed(1)
+
     boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
-    drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix, texture)
+    drawTableSurface(moodyReport, gl, programInfo, buffers, texture)
     requestAnimationFrame(render)
   }
   requestAnimationFrame(render)
 }
 
+let then = 0
+const frameTimes = []
+let   frameCursor = 0
+let   numFrames = 0
+const maxFrames = 20
+let   totalFPS = 0
+const fpsElem = document.querySelector("#fps")
+const avgElem = document.querySelector("#avg")
+
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
-function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatrix, texture) {
+function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
+  let tableModelMatrix = Mat4.create()
+  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableScaleMatrix)
+  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableRotationMatrix)
+  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableTranslateMatrix)
+
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clearDepth(1.0)
   gl.enable(gl.DEPTH_TEST)
@@ -561,48 +533,46 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, tableModelMatri
   gl.uniform1i(programInfo.uniformLocations.showHeatmap, showHeatmap)
   gl.uniform1i(programInfo.uniformLocations.lightingOn, lightingOn)
 
-  {
-    let offset = 0
-    let vertexCount = moodyReport.topStartingDiagonalTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  let offset = 0
+  let vertexCount = moodyReport.topStartingDiagonalTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.bottomStartingDiagonalTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.bottomStartingDiagonalTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.northPerimeterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.northPerimeterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.eastPerimeterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.eastPerimeterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.southPerimeterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.southPerimeterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.westPerimeterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.westPerimeterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.horizontalCenterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.horizontalCenterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = moodyReport.verticalCenterTable.vertices().flat(1).length / 3
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  offset += vertexCount
+  vertexCount = moodyReport.verticalCenterTable.vertices().flat(1).length / 3
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 
-    offset += vertexCount
-    vertexCount = buffers.triangleVertices.length
-    gl.drawArrays(gl.TRIANGLES, offset, vertexCount / 3)
+  offset += vertexCount
+  vertexCount = buffers.triangleVertices.length
+  gl.drawArrays(gl.TRIANGLES, offset, vertexCount / 3)
 
-    gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, Mat4.create())
-    offset += vertexCount / 3
-    vertexCount = 6
-    gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
-  }
+  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, Mat4.create())
+  offset += vertexCount / 3
+  vertexCount = 6
+  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
 }
 
 const vsSource = `#version 300 es
@@ -814,9 +784,9 @@ function getColorBuffer(gl, moodyReport, triangleVertices) {
     .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.749019607843137, 0.8470588235294118, 1.0]).flat(1))
     .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
     .concat(colorMappedZValues.flat(1)) // Add color mapped colors for the triangles z-value.
-    .concat(1, 0, 0, 1, 	1, 0.6, 0, 1,
-			      0, 1, 0, 1, 	0.6, 1, 0, 1,
-			      0, 0, 1, 1, 	0, 0.6, 1, 1) // Add colors for axes lines.
+    .concat(1, 1, 1, 1, 	1, 0, 0, 1,
+			      1, 1, 1, 1, 	0, 1, 0, 1,
+			      1, 1, 1, 1, 	0, 0, 1, 1) // Add colors for axes lines.
 
   console.log("Color buffer size: " + colors.length / 4)
   const colorBuffer = gl.createBuffer()
