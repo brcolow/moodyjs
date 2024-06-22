@@ -258,16 +258,21 @@ let lightingOn = true
 
 function mapToSphere(mouseX, mouseY, canvas) {
   // Let radius = 1, so radius * radius = 1.
+  const radius = 1
   const res = Math.min(canvas.width, canvas.height) - 1
-  const x = (2 * (mouseX - boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX / 2) - canvas.width - 1) / res
-  const y = (2 * (mouseY - boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY / 2) - canvas.height - 1) / res
+  console.log(mouseX)
+  console.log(mouseY)
+  const x = 2 * (mouseX - canvas.width - 1) / res
+  const y = 2 * (mouseY - canvas.height - 1) / res
   const length = Math.sqrt(x * x + y * y)
+  console.log(x)
+  console.log(y)
 
   // Map to sphere when x^2 + y^2 <= r^2 / 2 - otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
-  if (2 * length <= 1) {
-    return new Vector3(x, y, Math.sqrt(1 - length * length)).norm()
+  if (length <= radius / Math.sqrt(2)) {
+    return new Vector3(x, y, Math.sqrt(radius * radius - (x * x + y * y))).norm()
   } else {
-    return new Vector3(x, y, Math.atan(length) / Math.PI * 0.5).norm()
+    return new Vector3(x, y, (radius * radius) / (2 * length)).norm()
   }
 }
 
@@ -325,11 +330,6 @@ function initialize3DTableGraphic(moodyReport, tableModelMatrix) {
     if (lastMappedPosition) {
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const mapped = mapToSphere(event.clientX, event.clientY, canvas)
-
-      const threshold = 0.02 // Adjust threshold for desired sensitivity.
-      if (Math.abs(mapped.x - lastMappedPosition.x) <= threshold && Math.abs(mapped.y - lastMappedPosition.y) <= threshold) {
-        return
-      }
 
       // Determine rotation axis.
       const axis = new Vector3(lastMappedPosition.cross(mapped).x, lastMappedPosition.cross(mapped).y, 0)
