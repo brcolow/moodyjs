@@ -259,14 +259,22 @@ let tableScaleMatrix = Mat4.create()
 let tableTranslateMatrix = Mat4.create()
 let initialTableRotation = Mat4.create()
 
-function mapToSphere(mouseX, mouseY, canvas) {
-  const radius = 3
+function toClipSpace(canvas, x, y) {
   const res = Math.max(canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height) - 1
-  const x = (2 * (mouseX - canvas.getBoundingClientRect().x) - canvas.getBoundingClientRect().width - 1) / res
-  const y = (2 * (mouseY - canvas.getBoundingClientRect().y) - canvas.getBoundingClientRect().height - 1) / res
+  return [
+    (2 * (x - canvas.getBoundingClientRect().x) - canvas.getBoundingClientRect().width - 1) / res,
+    (2 * (y - canvas.getBoundingClientRect().y) - canvas.getBoundingClientRect().height - 1) / res
+  ]
+}
+
+function mapToSphere(mouseX, mouseY, canvas) {
+  const xy = toClipSpace(canvas, mouseX, mouseY)
+  const x = xy[0]
+  const y = xy[1]
   const lengthSquared = x * x + y * y
 
-  console.log(lengthSquared)
+  const radius = 3
+
   // Map to sphere when x^2 + y^2 <= r^2 / 2 - otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
   if (2 * lengthSquared <= radius * radius) {
     return new Vector3(x, y, Math.sqrt((radius * radius) - lengthSquared))
@@ -362,7 +370,9 @@ function initialize3DTableGraphic(moodyReport) {
       return
     }
     cumulativeZoomFactor *= zoomFactor
+
     // TODO: Keep zoom centered at mouse cursor.
+    // See: https://stackoverflow.com/questions/57892652/webgl-2d-camera-zoom-to-mouse-point
     tableScaleMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
   }
 
@@ -469,7 +479,7 @@ function initialize3DTableGraphic(moodyReport) {
   requestAnimationFrame(render)
 }
 
-let then = 0
+let   then = 0
 const frameTimes = []
 let   frameCursor = 0
 let   numFrames = 0
@@ -676,20 +686,26 @@ const fsSource = `#version 300 es
 `
 
 function getBuffers(gl, moodyReport, zMultiplier) {
-  const positionBuffer = getPositionBuffer(gl, moodyReport, zMultiplier)
-  const lineColorBuffer = getColorBuffer(gl, moodyReport, positionBuffer.triangleVertices)
+  const buffers = getNonColorBuffers(gl, moodyReport, zMultiplier)
+  const lineColorBuffer = getColorBuffer(gl, moodyReport, buffers.triangleVertices)
+
+  const areEqual = (x, y, z, w, v) => x === y && y === z && z === w && w === v
+  console.assert(areEqual(buffers.positions.length / 3, buffers.normals.length / 3, buffers.textureCoordinates.length / 2, buffers.types.length, lineColorBuffer.colors.length / 4),
+    `All buffers must be of the same size (per vertex) but were not. Position buffer: ${buffers.positions.length / 3},
+    Normal buffer: ${buffers.normals.length / 3}, Texture buffer: ${buffers.textureCoordinates.length / 2}, Type buffer: ${buffers.types.length},
+    Color buffer: ${lineColorBuffer.colors.length / 4}`)
 
   return {
-    positionBuffer: positionBuffer.positionBuffer,
-    normalBuffer: positionBuffer.normalBuffer,
-    triangleVertices: positionBuffer.triangleVertices,
-    textureBuffer: positionBuffer.textureBuffer,
-    typeBuffer: positionBuffer.typeBuffer,
-    lineColors: lineColorBuffer,
+    positionBuffer: buffers.positionBuffer,
+    normalBuffer: buffers.normalBuffer,
+    triangleVertices: buffers.triangleVertices,
+    textureBuffer: buffers.textureBuffer,
+    typeBuffer: buffers.typeBuffer,
+    lineColors: lineColorBuffer.colorBuffer,
   }
 }
 
-function getPositionBuffer(gl, moodyReport, zMultiplier) {
+function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
 
   const triangulation = bowyerWatson(vertices)
@@ -711,7 +727,6 @@ function getPositionBuffer(gl, moodyReport, zMultiplier) {
 			      0, 0, 0,	0, 0, axisSize)
   )
 
-  console.log("Position buffer size: " + positions.length / 3)
   const positionBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
@@ -729,7 +744,6 @@ function getPositionBuffer(gl, moodyReport, zMultiplier) {
     triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length]
     }).flat(1)
   const normals = new Float32Array(lineNormals.concat(triangleNormals).concat(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-  console.log("Normals buffer size: " + normals.length / 3)
   const normalBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
@@ -746,13 +760,16 @@ function getPositionBuffer(gl, moodyReport, zMultiplier) {
   //  Map [minX, maxX] => [0, 1] and [minY, maxY] => [0, 1]
   // (val - A) * (b - a) / (B - A) + a
   const triangleTextureCoords = triangulation.map((triangle) => [
-    ((triangle.v0.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX), ((triangle.v0.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
-    ((triangle.v1.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].maxX), ((triangle.v1.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
-    ((triangle.v2.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX), ((triangle.v2.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),]
+    ((triangle.v0.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX), 
+    ((triangle.v0.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
+    ((triangle.v1.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].maxX), 
+    ((triangle.v1.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
+    ((triangle.v2.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX), 
+    ((triangle.v2.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
+  ]
   ).flat(1)
 
   const textureCoordinates = new Float32Array(lineTextureCoords.concat(triangleTextureCoords).concat(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0))
-  console.log("Texture buffer size: " + textureCoordinates.length / 2)
   const textureBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, textureCoordinates, gl.STATIC_DRAW)
@@ -760,13 +777,15 @@ function getPositionBuffer(gl, moodyReport, zMultiplier) {
   const types = new Float32Array(
     moodyReport.vertices(zMultiplier).map(v => [0.0]).flat(1) // "Union jack" colored lines have type "0.0"
     .concat(triangulation.map(_ => [1.0, 1.0, 1.0]).flat(1))  // Table vertices have type "1.0"
-    .concat(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)) // Axes vertices have type "0.0"
-  console.log("Type buffer size: " + types.length)
+    .concat(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))                    // Axis vertices have type "0.0"
+
   const typeBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, typeBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, types, gl.STATIC_DRAW)
 
-  return { positionBuffer: positionBuffer, normalBuffer: normalBuffer, textureBuffer: textureBuffer, typeBuffer: typeBuffer, triangleVertices: triangulatedVertices }
+  return { positionBuffer: positionBuffer, positions: positions, normalBuffer: normalBuffer, normals: normals, 
+    textureBuffer: textureBuffer, textureCoordinates: textureCoordinates, typeBuffer: typeBuffer, types: types, 
+    triangleVertices: triangulatedVertices }
 }
 
 function getColorBuffer(gl, moodyReport, triangleVertices) {
@@ -784,16 +803,15 @@ function getColorBuffer(gl, moodyReport, triangleVertices) {
     .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.749019607843137, 0.8470588235294118, 1.0]).flat(1))
     .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
     .concat(colorMappedZValues.flat(1)) // Add color mapped colors for the triangles z-value.
-    .concat(1, 1, 1, 1, 	1, 0, 0, 1,
-			      1, 1, 1, 1, 	0, 1, 0, 1,
-			      1, 1, 1, 1, 	0, 0, 1, 1) // Add colors for axes lines.
+    .concat(1, 1, 1, 1,   1, 0, 0, 1,
+            1, 1, 1, 1,   0, 1, 0, 1,
+            1, 1, 1, 1,   0, 0, 1, 1) // Add colors for axes lines.
 
-  console.log("Color buffer size: " + colors.length / 4)
   const colorBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW)
 
-  return colorBuffer
+  return { colorBuffer: colorBuffer, colors: colors }
 }
 
 function setPositionAttribute(gl, buffers, programInfo) {

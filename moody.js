@@ -61,6 +61,9 @@ class Table {
   surfacePlateWidthInches
   surfacePlateDiagonalInches
   suggestedDiagonalInset
+  plateDiagonalAngle
+  xInset
+  yInset
 
   constructor(lineSegment, arcSecondData, reflectorFootSpacingInches, surfacePlateHeightInches, surfacePlateWidthInches, suggestedDiagonalInset) {
     this.lineSegment = lineSegment
@@ -69,6 +72,9 @@ class Table {
     this.surfacePlateHeightInches = surfacePlateHeightInches
     this.surfacePlateWidthInches = surfacePlateWidthInches
     this.suggestedDiagonalInset = suggestedDiagonalInset
+    this.plateDiagonalAngle = Math.atan(this.surfacePlateWidthInches / this.surfacePlateHeightInches)
+    this.xInset = this.suggestedDiagonalInset * Math.sin(this.plateDiagonalAngle)
+    this.yInset = this.suggestedDiagonalInset * Math.cos(this.plateDiagonalAngle)
   }
 
   printDebug() {
@@ -177,25 +183,22 @@ class DiagonalTable extends Table {
   //   We could make it so we also calculate the suggestedHorizontal and suggestedVertical insets. Right now we are assuming the reflectorFootSpacing evenly divides into the plate width/height - but what if it is non-standard?
   // (0,0) origin is bottom left corner of surface plate.
   vertices(zMultiplier = 1) {
-    const plateDiagonalAngle = Math.atan(this.surfacePlateWidthInches / this.surfacePlateHeightInches)
-    const xInset = this.suggestedDiagonalInset * Math.sin(plateDiagonalAngle)
-    const yInset = this.suggestedDiagonalInset * Math.cos(plateDiagonalAngle)
     if (this.lineSegment.start == Direction.Northwest) {
       // Top-Starting Diagonal
       // y = -(table_width/table_height) * x  + table_height
       // sin(theta) = y / reflector_foot_spacing
       // tan(theta) = y / x
       return this.displacementsFromBaseLineLinear.map((z, i) => {
-        const x = xInset + (i * Math.sin(plateDiagonalAngle) * this.reflectorFootSpacingInches)
-        const y = this.surfacePlateHeightInches - yInset - (i * Math.cos(plateDiagonalAngle) * this.reflectorFootSpacingInches)
+        const x = this.xInset + (i * Math.sin(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
+        const y = this.surfacePlateHeightInches - this.yInset - (i * Math.cos(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
         return [x, y, z * zMultiplier]
       })
     } else {
       // Bottom starting diagonal
       // y = (table_width/table_height) * x
       return this.displacementsFromBaseLineLinear.map((z, i) => {
-        const x = this.surfacePlateWidthInches - xInset - (i *  Math.sin(plateDiagonalAngle) * this.reflectorFootSpacingInches)
-        const y = this.surfacePlateHeightInches - yInset - (i * Math.cos(plateDiagonalAngle) * this.reflectorFootSpacingInches)
+        const x = this.surfacePlateWidthInches - this.xInset - (i *  Math.sin(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
+        const y = this.surfacePlateHeightInches - this.yInset - (i * Math.cos(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
         return [x, y, z * zMultiplier]
       })
     }
@@ -226,21 +229,18 @@ class PerimeterTable extends Table {
 
   // (0,0) origin is bottom left corner of surface plate.
   vertices(zMultiplier = 1) {
-    const plateDiagonalAngle = Math.atan(this.surfacePlateWidthInches / this.surfacePlateHeightInches)
-    const xInset = this.suggestedDiagonalInset * Math.sin(plateDiagonalAngle)
-    const yInset = this.suggestedDiagonalInset * Math.cos(plateDiagonalAngle)
     if (this.lineSegment.start == Direction.Northeast && this.lineSegment.end == Direction.Northwest) {
       // North Perimeter
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - xInset - (i * this.reflectorFootSpacingInches), this.surfacePlateHeightInches - yInset, z * zMultiplier])
+      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.surfacePlateHeightInches - this.yInset, z * zMultiplier])
     } else if (this.lineSegment.start == Direction.Northeast && this.lineSegment.end == Direction.Southeast) {
       // East Perimeter
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - xInset, this.surfacePlateHeightInches - yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
+      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
     } else if (this.lineSegment.start == Direction.Southeast && this.lineSegment.end == Direction.Southwest) {
       // South Perimeter
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - xInset - (i * this.reflectorFootSpacingInches), yInset, z * zMultiplier])
+      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.yInset, z * zMultiplier])
     } else if (this.lineSegment.start == Direction.Northwest && this.lineSegment.end == Direction.Southwest) {
       // West Perimeter
-      return this.displacementsFromBaseLineLinear.map((z, i) => [xInset, this.surfacePlateHeightInches - yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
+      return this.displacementsFromBaseLineLinear.map((z, i) => [this.xInset, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
     }
   }
 }
@@ -308,15 +308,12 @@ class CenterTable extends Table {
 
   // (0,0) origin is bottom left corner of surface plate.
   vertices(zMultiplier = 1) {
-    const plateDiagonalAngle = Math.atan(this.surfacePlateWidthInches / this.surfacePlateHeightInches)
-    const xInset = this.suggestedDiagonalInset * Math.sin(plateDiagonalAngle)
-    const yInset = this.suggestedDiagonalInset * Math.cos(plateDiagonalAngle)
     if (this.lineSegment.start == Direction.East) {
       // Horizontal Center Line
-      return this.displacementsFromBaseLineLinear.map((z, i) => { return [this.surfacePlateWidthInches - xInset - (i * this.reflectorFootSpacingInches), this.surfacePlateHeightInches / 2, z * zMultiplier] })
+      return this.displacementsFromBaseLineLinear.map((z, i) => { return [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.surfacePlateHeightInches / 2, z * zMultiplier] })
     } else if (this.lineSegment.start == Direction.North) {
       // Vertical Center Line
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches / 2, this.surfacePlateHeightInches - yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
+      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches / 2, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
     }
   }
 
@@ -420,8 +417,8 @@ class MoodyReport {
       this.southPerimeterTable.midStationValue(this.southPerimeterTable.displacementsFromDatumPlane),
       verticalCenterReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
 
-    // Moody uses North Perimeter Line as the example, for the other one's it requires a bit of thinking as to which
-    // diagonal line values need to be copied to the other perimeter lines for consistency.
+    // Moody uses the North Perimeter Line as an example; for the other one's, it requires a bit of thinking as to which
+    // diagonal line values need to be copied to the other perimeter lines for consistency (with the example).
 
     // Copy value in Column #6 of NE end of NE-SW diagonal in to Columns #5 and #6 for perimeter lines.
     this.northPerimeterTable.cumulativeCorrectionFactors.unshift(this.topStartingDiagonalTable.displacementsFromDatumPlane[0])
@@ -442,7 +439,7 @@ class MoodyReport {
     this.westPerimeterTable.displacementsFromDatumPlane.unshift(this.topStartingDiagonalTable.displacementsFromDatumPlane[0])
     this.westPerimeterTable.displacementsFromDatumPlane.unshift(this.bottomStartingDiagonalTable.displacementsFromDatumPlane.at(-1))
 
-    // Moody uses the Horizontal Center Line as the example, for the other one (Vertical Center Line), it requires a bit of
+    // Moody uses the Horizontal Center Line as an example; for the other one (Vertical Center Line), it requires a bit of
     // thinking as to which perimeter line values need to be copied to the other center line for consistency.
 
     // Enter the value for the midpoint of the east perimeter line opposite the first station in Columns #5 and #6.
