@@ -48,10 +48,8 @@ class Triangle {
 
     const G = 2.0 * (A * (this.v2.y - this.v1.y) - B * (this.v2.x - this.v1.x))
 
-    let dx, dy
-
-    // Collinear points, get extremes and use midpoint as center
-    if (Math.round(Math.abs(G)) == 0) {
+    if (G == 0) {
+      // Collinear points (no circle through them exists) so: get extremes and use midpoint as center.
       const minx = Math.min(this.v0.x, this.v1.x, this.v2.x)
       const miny = Math.min(this.v0.y, this.v1.y, this.v2.y)
       const maxx = Math.max(this.v0.x, this.v1.x, this.v2.x)
@@ -59,18 +57,19 @@ class Triangle {
 
       this.center = new Vertex((minx + maxx) / 2, (miny + maxy) / 2, 0)
 
-      dx = this.center.x - minx
-      dy = this.center.y - miny
+      const dx = this.center.x - minx
+      const dy = this.center.y - miny
+      this.radius = Math.sqrt(dx * dx + dy * dy);
     } else {
       const cx = (D * E - B * F) / G
       const cy = (A * F - C * E) / G
 
       this.center = new Vertex(cx, cy, 0)
 
-      dx = this.center.x - this.v0.x
-      dy = this.center.y - this.v0.y
+      const dx = this.center.x - this.v0.x
+      const dy = this.center.y - this.v0.y
+      this.radius = Math.sqrt(dx * dx + dy * dy);
     }
-    this.radius = Math.sqrt(dx * dx + dy * dy)
   }
 
   inCircumcircle(v) {
@@ -85,24 +84,27 @@ class Triangle {
 }
 
 function getSuperTriangle(vertices) {
-  let minx = Infinity
-  let miny = Infinity
+  // Initialize with first vertex.
+  let minX = vertices[0].x
+  let minY = vertices[0].y
+  let maxX = vertices[0].x
+  let maxY = vertices[0].y
 
-  let maxx = -Infinity
-  let maxy = -Infinity
-  vertices.forEach(vertex => {
-    minx = Math.min(minx, vertex.x)
-    miny = Math.min(minx, vertex.y)
-    maxx = Math.max(maxx, vertex.x)
-    maxy = Math.max(maxx, vertex.y)
-  })
+  // Loop through remaining vertices to find min/max.
+  for (let i = 1; i < vertices.length; i++) {
+    const vertex = vertices[i]
+    minX = Math.min(minX, vertex.x)
+    minY = Math.min(minY, vertex.y)
+    maxX = Math.max(maxX, vertex.x)
+    maxY = Math.max(maxY, vertex.y)
+  }
 
-  const dx = (maxx - minx) * 10
-  const dy = (maxy - miny) * 10
+  const dx = (maxX - minX) * 10
+  const dy = (maxY - minY) * 10
 
-  const v0 = new Vertex(minx - dx, miny - dy * 3, 0)
-  const v1 = new Vertex(minx - dx, maxy + dy, 0)
-  const v2 = new Vertex(maxx + dx * 3, maxy + dy, 0)
+  const v0 = new Vertex(minX - dx, minY - dy * 3, 0)
+  const v1 = new Vertex(minX - dx, maxY + dy, 0)
+  const v2 = new Vertex(maxX + dx * 3, maxY + dy, 0)
 
   return new Triangle(v0, v1, v2)
 }
@@ -154,7 +156,7 @@ function uniqueEdges(edges) {
 
 function bowyerWatson(vertices) {
   // Create bounding 'super' triangle.
-  let st = getSuperTriangle(vertices)
+  const st = getSuperTriangle(vertices)
   // Initialize triangles while adding bounding triangle.
   let triangles = [st]
 

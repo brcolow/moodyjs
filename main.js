@@ -308,6 +308,7 @@ function initialize3DTableGraphic(moodyReport) {
     ctx.fillText("Unable to initialize WebGL!", canvas.width / 2, canvas.height / 2)
     return
   }
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
 
   document.querySelector("#zMultiplier").addEventListener("input", event => {
     zMultiplier = event.target.value
@@ -459,6 +460,15 @@ function initialize3DTableGraphic(moodyReport) {
   buffers = getBuffers(gl, moodyReport, zMultiplier)
 
   function render(now) {
+    now = updateFps(now)
+
+    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
+    drawTableSurface(moodyReport, gl, programInfo, buffers, texture)
+    requestAnimationFrame(render)
+  }
+  requestAnimationFrame(render)
+
+  function updateFps(now) {
     now *= 0.001
     const deltaTime = now - then
     then = now
@@ -471,26 +481,22 @@ function initialize3DTableGraphic(moodyReport) {
     frameCursor %= maxFrames
     const averageFPS = totalFPS / numFrames
     avgElem.textContent = averageFPS.toFixed(1)
-
-    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
-    drawTableSurface(moodyReport, gl, programInfo, buffers, texture)
-    requestAnimationFrame(render)
+    return now
   }
-  requestAnimationFrame(render)
-}
 
-let   then = 0
-const frameTimes = []
-let   frameCursor = 0
-let   numFrames = 0
-const maxFrames = 20
-let   totalFPS = 0
-const fpsElem = document.querySelector("#fps")
-const avgElem = document.querySelector("#avg")
+  let   then = 0
+  const frameTimes = []
+  let   frameCursor = 0
+  let   numFrames = 0
+  const maxFrames = 20
+  let   totalFPS = 0
+  const fpsElem = document.querySelector("#fps")
+  const avgElem = document.querySelector("#avg")
+}
 
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
 function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
-  let tableModelMatrix = Mat4.create()
+  const tableModelMatrix = Mat4.create()
   Mat4.multiply(tableModelMatrix, tableModelMatrix, tableScaleMatrix)
   Mat4.multiply(tableModelMatrix, tableModelMatrix, tableRotationMatrix)
   Mat4.multiply(tableModelMatrix, tableModelMatrix, tableTranslateMatrix)
@@ -527,8 +533,8 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   Mat4.invert(normalMatrix, Mat4.multiply(normalMatrix, viewMatrix, tableModelMatrix))
   Mat4.transpose(normalMatrix, normalMatrix)
 
-  let lightPos = [document.getElementById("lightPosX").value, document.getElementById("lightPosY").value, document.getElementById("lightPosZ").value]
-  let lightPower = document.getElementById("lightPower").value
+  const lightPos = [document.getElementById("lightPosX").value, document.getElementById("lightPosY").value, document.getElementById("lightPosZ").value]
+  const lightPower = document.getElementById("lightPower").value
 
   gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
   gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, tableModelMatrix)
@@ -586,103 +592,103 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
 }
 
 const vsSource = `#version 300 es
-    in vec4 vertexPosition;
-    in vec3 vertexNormal;
-    in vec4 vertexColor;
-    in vec2 vertexTextureCoord;
-    in float vertexType;
-    uniform mat4 modelMatrix;
-    uniform mat4 viewMatrix;
-    uniform mat4 projectionMatrix;
-    uniform mat4 normalMatrix;
-    out lowp vec4 color;
-    out highp vec2 textureCoord;
-    out highp vec3 normalInterp;
-    out highp vec3 vertPos;
-    out highp float vVertexType;
+in vec4 vertexPosition;
+in vec3 vertexNormal;
+in vec4 vertexColor;
+in vec2 vertexTextureCoord;
+in float vertexType;
+uniform mat4 modelMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 normalMatrix;
+out lowp vec4 color;
+out highp vec2 textureCoord;
+out highp vec3 normalInterp;
+out highp vec3 vertPos;
+out highp float vVertexType;
 
-    void main() {
-      gl_Position = projectionMatrix * viewMatrix * modelMatrix * vertexPosition;
-      color = vertexColor;
-      textureCoord = vertexTextureCoord;
-      vVertexType = vertexType;
+void main() {
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vertexPosition;
+  color = vertexColor;
+  textureCoord = vertexTextureCoord;
+  vVertexType = vertexType;
 
-      normalInterp = vec3(normalMatrix * vec4(vertexNormal, 0.0));
-      vec4 vertPos4 = viewMatrix * modelMatrix * vertexPosition;
-      vertPos = vec3(vertPos4) / vertPos4.w;
-    }
+  normalInterp = vec3(normalMatrix * vec4(vertexNormal, 0.0));
+  vec4 vertPos4 = viewMatrix * modelMatrix * vertexPosition;
+  vertPos = vec3(vertPos4) / vertPos4.w;
+}
 `
 
 const fsSource = `#version 300 es
-    precision mediump float;
-    in lowp vec4 color;
-    in vec3 normalInterp;
-    in vec3 vertPos;
-    in highp vec2 textureCoord;
-    in highp float vVertexType;
-    const highp vec3 lightColor = vec3(1.0, 1.0, 1.0);
-    const highp vec3 ambientColor = vec3(0.4, 0.4, 0.4);
-    const highp vec3 diffuseColor = vec3(0.2, 0.2, 0.2);
-    const highp vec3 specColor = vec3(1.0, 1.0, 1.0);
-    const highp float shininess = 8.0;
-    const highp float screenGamma = 2.2; // Assume the monitor is calibrated to the sRGB color space
-    uniform vec3 lightPos;
-    uniform float lightPower;
-    uniform sampler2D sampler;
-    uniform bool showLines;
-    uniform bool showHeatmap;
-    uniform bool lightingOn;
-    out vec4 outputColor;
+precision mediump float;
+in lowp vec4 color;
+in vec3 normalInterp;
+in vec3 vertPos;
+in highp vec2 textureCoord;
+in highp float vVertexType;
+const highp vec3 lightColor = vec3(1.0, 1.0, 1.0);
+const highp vec3 ambientColor = vec3(0.4, 0.4, 0.4);
+const highp vec3 diffuseColor = vec3(0.2, 0.2, 0.2);
+const highp vec3 specColor = vec3(1.0, 1.0, 1.0);
+const highp float shininess = 8.0;
+const highp float screenGamma = 2.2; // Assume the monitor is calibrated to the sRGB color space
+uniform vec3 lightPos;
+uniform float lightPower;
+uniform sampler2D sampler;
+uniform bool showLines;
+uniform bool showHeatmap;
+uniform bool lightingOn;
+out vec4 outputColor;
 
-    void main() {
-      if (vVertexType == 0.0) {
-        // This vertex belongs to one of the Union jack Moody lines.
-        if (showLines) {
-          outputColor = color;
-        } else {
-          discard;
-        }
+void main() {
+  if (vVertexType == 0.0) {
+    // This vertex belongs to one of the Union jack Moody lines.
+    if (showLines) {
+      outputColor = color;
+    } else {
+      discard;
+    }
+  } else {
+    // This vertex belongs to the table mesh.
+    vec3 normal = normalize(normalInterp);
+    vec3 lightDir = lightPos - vertPos;
+    float distance = length(lightDir);
+
+    distance = distance * distance;
+    lightDir = normalize(lightDir);
+
+    float lambertian = max(dot(lightDir, normal), 0.0);
+    float specular = 0.0;
+
+    if (lambertian > 0.0) {
+      vec3 viewDir = normalize(-vertPos);
+      vec3 halfDir = normalize(lightDir + viewDir);
+      float specAngle = max(dot(halfDir, normal), 0.0);
+      specular = pow(specAngle, shininess);
+    }
+
+    vec3 colorLinear = ambientColor +
+                        diffuseColor * lambertian * lightColor * lightPower / distance +
+                        specColor * specular * lightColor * lightPower / distance;
+    // apply gamma correction (assume ambientColor, diffuseColor and specColor
+    // have been linearized, i.e. have no gamma correction in them)
+    vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
+    if (!showHeatmap) {
+      if (lightingOn) {
+        outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
       } else {
-        // This vertex belongs to the table mesh.
-        vec3 normal = normalize(normalInterp);
-        vec3 lightDir = lightPos - vertPos;
-        float distance = length(lightDir);
-
-        distance = distance * distance;
-        lightDir = normalize(lightDir);
-
-        float lambertian = max(dot(lightDir, normal), 0.0);
-        float specular = 0.0;
-
-        if (lambertian > 0.0) {
-          vec3 viewDir = normalize(-vertPos);
-          vec3 halfDir = normalize(lightDir + viewDir);
-          float specAngle = max(dot(halfDir, normal), 0.0);
-          specular = pow(specAngle, shininess);
-        }
-
-        vec3 colorLinear = ambientColor +
-                           diffuseColor * lambertian * lightColor * lightPower / distance +
-                           specColor * specular * lightColor * lightPower / distance;
-        // apply gamma correction (assume ambientColor, diffuseColor and specColor
-        // have been linearized, i.e. have no gamma correction in them)
-        vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
-        if (!showHeatmap) {
-          if (lightingOn) {
-            outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
-          } else {
-            outputColor = texture(sampler, textureCoord);
-          }
-        } else {
-          if (lightingOn) {
-            // No heatmap - show the table with a granite texture.
-            outputColor = vec4(color.rgb * colorGammaCorrected, 1.0);
-          } else {
-            outputColor = color;
-          }
-        }
+        outputColor = texture(sampler, textureCoord);
+      }
+    } else {
+      if (lightingOn) {
+        // No heatmap - show the table with a granite texture.
+        outputColor = vec4(color.rgb * colorGammaCorrected, 1.0);
+      } else {
+        outputColor = color;
       }
     }
+  }
+}
 `
 
 function getBuffers(gl, moodyReport, zMultiplier) {
@@ -707,16 +713,13 @@ function getBuffers(gl, moodyReport, zMultiplier) {
 
 function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
-
   const triangulation = bowyerWatson(vertices)
-
   const triangulatedVertices = triangulation.map(triangle => [
     triangle.v0.x, triangle.v0.y, triangle.v0.z,
     triangle.v1.x, triangle.v1.y, triangle.v1.z,
     triangle.v2.x, triangle.v2.y, triangle.v2.z]).flat(1)
 
   const axisSize = 20
-
   // FIXME: We want the line to always be on top of the surface but it can dip underneath it at extreme points. Adding 0.1 to z-coordinate is not good enough.
   // We need to calculate the slope from point x -> y and use it to find amount to add so line is always on top.
   const positions = new Float32Array(
@@ -739,11 +742,11 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
       triangle.surfaceNormal().y * triangle.surfaceNormal().y +
       triangle.surfaceNormal().z * triangle.surfaceNormal().z)
     return [
-    triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
-    triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
-    triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length]
-    }).flat(1)
-  const normals = new Float32Array(lineNormals.concat(triangleNormals).concat(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+      triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
+      triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
+      triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length
+    ]}).flat(1)
+  const normals = new Float32Array(lineNormals.concat(triangleNormals).concat(new Array(18).fill(0)))
   const normalBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
