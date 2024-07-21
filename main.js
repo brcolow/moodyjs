@@ -721,7 +721,8 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
 
   const axisSize = 20
   // FIXME: We want the line to always be on top of the surface but it can dip underneath it at extreme points. Adding 0.1 to z-coordinate is not good enough.
-  // We need to calculate the slope from point x -> y and use it to find amount to add so line is always on top.
+  // We need to calculate the slope from point x -> y and use it to find amount to add so line is always on top or have the lines use the same slope as the
+  // points.
   const positions = new Float32Array(
     moodyReport.vertices(zMultiplier).map(v => [v[0], v[1], v[2] + 0.1]).flat(1) // "Union jack" colored lines.
     .concat(triangulatedVertices)
