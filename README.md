@@ -95,6 +95,11 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 * Allow for "importing" a number set (maybe from a CSV file or a textarea with a simple format). 
 * Fix the way that some measuring lines are cut off on the 3D representation (this happens because the vertices are located at the first foot location).
 * Make zooming relative to where the mouse cursor is (keep the mouse centered on zoom).
+* Metric support.
+* Show the locations of the carriage/sled as tick marks on the lines
+* The 'heat map' is pretty, but with everything set to zero it is showing a lot of distortion - look into this.
+* The UI takes up a lot of space, the data entry would be better as tabbed tables selectable by clicking on the corresponding line, and segments should be shown and similarly clickable to highlight the entry field.
+* Be as color-blind friendly as possible.
 
 ## Developer Notes
 

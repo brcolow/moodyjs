@@ -1,6 +1,7 @@
 // From glMatrix v4.
 // https://github.com/toji/gl-matrix/tree/glmatrix-next
 // Copyright 2022 Brandon Jones, Colin MacKenzie IV
+const EPSILON = 0.000001
 
 class Vector2 extends Float32Array {
   constructor(...values) {
@@ -31,20 +32,9 @@ class Vector2 extends Float32Array {
 
   get x() { return this[0]; }
   get y() { return this[1]; }
-
-  static transformMat3(out, a, m) {
-    const x = a[0]
-    const y = a[1]
-    // const d = x * m[0 * 3 + 2] + y * m[1 * 3 + 2] + m[2 * 3 + 2]
-    const d = 1
-    out[0] = m[0] * x + m[3] * y + m[6] / d
-    out[1] = m[1] * x + m[4] * y + m[7] / d
-    return out
-  }
 }
 
 class Vector3 extends Float32Array {
-
   constructor(...values) {
     switch(values.length) {
       case 3:
@@ -176,8 +166,6 @@ const IDENTITY_4X4 = new Float32Array([
     0, 0, 1, 0,
     0, 0, 0, 1,
   ])
-
-const EPSILON = 0.000001
 
 class Mat4 extends Float32Array {
   constructor(...values) {

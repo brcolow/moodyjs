@@ -45,7 +45,7 @@ class Triangle {
 
     const E = A * (this.v0.x + this.v1.x) + B * (this.v0.y + this.v1.y)
     const F = C * (this.v0.x + this.v2.x) + D * (this.v0.y + this.v2.y)
-
+ 
     const G = 2.0 * (A * (this.v2.y - this.v1.y) - B * (this.v2.x - this.v1.x))
 
     if (G == 0) {
