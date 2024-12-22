@@ -45,6 +45,16 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementsByClassName("readingInput")[0].dispatchEvent(new Event('input', { bubbles: true }))
   })
 
+  document.getElementById('fillZeroData').addEventListener("click", () => {
+    lines.forEach((line, lineIndex) => {
+      moodyData[lineIndex].forEach((tableEntry, index) => {
+          document.getElementById(line + "Table" + (index + 1)).value = 0.0
+      })
+    })
+    // Trigger table refresh.
+    document.getElementsByClassName("readingInput")[0].dispatchEvent(new Event('input', { bubbles: true }))
+  })
+
   document.getElementById("createTables").addEventListener("click", () => {
     createTables()
   })
@@ -498,8 +508,8 @@ function initialize3DTableGraphic(moodyReport) {
 function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   const tableModelMatrix = Mat4.create()
   Mat4.multiply(tableModelMatrix, tableModelMatrix, tableScaleMatrix)
-  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableRotationMatrix)
   Mat4.multiply(tableModelMatrix, tableModelMatrix, tableTranslateMatrix)
+  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableRotationMatrix)
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clearDepth(1.0)
@@ -796,8 +806,10 @@ function getColorBuffer(gl, moodyReport, triangleVertices) {
   const triangleZValues = triangleVertices.filter((v, i) => (i + 1) % 3 == 0)
   const minZ = Math.min(...triangleZValues)
   const maxZ = Math.max(...triangleZValues)
-  const normalizedTriangleZValues = triangleZValues.map(value => (value - minZ) / (maxZ - minZ))
+  // In case all values are the same minZ = maxZ (i.e. it is a totally flat plate with zero deviation) so we must avoid division by zero - just set all values to 0.0.
+  const normalizedTriangleZValues = minZ === maxZ ? triangleZValues.map(value => 0.0) : triangleZValues.map(value => (value - minZ) / (maxZ - minZ))
   const colorMappedZValues = normalizedTriangleZValues.map(value => interpolate(turboColormapData, value))
+  console.log(colorMappedZValues)
   const colors = new Array(moodyReport.topStartingDiagonalTable.numStations).fill([0.9568627450980393, 0.2627450980392157, 0.21176470588235294, 1.0]).flat(1)
     .concat(new Array(moodyReport.bottomStartingDiagonalTable.numStations).fill([1.0, 0.9254901960784314, 0.2313725490196078, 1.0]).flat(1))
     .concat(new Array(moodyReport.northPerimeterTable.numStations).fill([0.2980392156862745, 0.6862745098039216, 0.3137254901960784, 1.0]).flat(1))
