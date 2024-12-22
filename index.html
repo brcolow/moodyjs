@@ -58,6 +58,43 @@
     input:user-invalid {
       border: red solid 2px;
     }
+    #canvasContainer {
+      resize: both;
+      position: relative; 
+      overflow: hidden;
+      width: 800px;
+      height: 600px;
+      min-width: 800px;
+      min-height: 600px;
+      display: none;
+    }
+    .resize-handle {
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      background-color: #aaa;
+      border: 1px solid #555;
+    }
+    .resize-handle.top-left {
+      top: 0;
+      left: 0;
+      cursor: nwse-resize;
+    }
+    .resize-handle.top-right {
+      top: 0;
+      right: 0;
+      cursor: nesw-resize;
+    }
+    .resize-handle.bottom-left {
+      bottom: 0;
+      left: 0;
+      cursor: nesw-resize;
+    }
+    .resize-handle.bottom-right {
+      bottom: 0;
+      right: 0;
+      cursor: nwse-resize;
+    }
   </style>
 </head>
 <body>
@@ -177,7 +214,17 @@ ISO Overall Flatness Requirements:<br/>
     </text>
   </g>
 </svg>
-<canvas id="glcanvas" width="800" height="600"></canvas>
+<div id="canvasContainer">
+  <canvas id="glcanvas" width="800" height="600"></canvas>
+  <!--
+  This is preliminary work on being able to resize the canvas from all corners but for now seems like more work than it's worth. We do keep the bottom-right resize
+  handle currently because it makes the resize graphic more visible to the user.
+  <div class="resize-handle top-left"></div>
+  <div class="resize-handle top-right"></div>
+  <div class="resize-handle bottom-left"></div>
+  -->
+  <div class="resize-handle bottom-right"></div>
+</div>
 <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
   <div style="flex: 10;">
     <table id="topStartingDiagonalTable" style="visibility: hidden; border: 3px solid var(--l1-color);">

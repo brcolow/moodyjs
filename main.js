@@ -199,7 +199,7 @@ function refreshTables(lines, surfacePlate) {
       document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }))
 
       initialize3DTableGraphic(moodyReport)
-
+      document.getElementById("canvasContainer").style.display = "block";
       lines.forEach(l => {
         Array.from(document.getElementById(l + "Table").getElementsByTagName("tbody")[0].rows).forEach((tableRow, index) => {
           const column3Input = document.createElement("input")
@@ -331,6 +331,21 @@ function initialize3DTableGraphic(moodyReport) {
   document.getElementById("showLines").addEventListener("change", event => showLines = event.target.checked)
   document.getElementById("showHeatmap").addEventListener("change", event => showHeatmap = event.target.checked)
   document.getElementById("lightingOn").addEventListener("change", event => lightingOn = event.target.checked)
+
+  const resizeObserver = new ResizeObserver(entries => {
+    for (let entry of entries) {
+      const { width, height } = entry.contentRect
+      const canvas = document.getElementById("glcanvas")
+      if (width > document.getElementById("canvasContainer").style.minWidth) {
+        canvas.width = width
+      }
+      if (height > document.getElementById("canvasContainer").style.minHeight) {
+        canvas.height = height
+      }
+    }
+  })
+
+  resizeObserver.observe(document.getElementById("canvasContainer"))
 
   canvas.onmousedown = event => {
     startVectorMapped = mapToSphere(event.clientX, event.clientY, canvas)
@@ -519,7 +534,11 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
   const fieldOfView = (45 * Math.PI) / 180 // radians
-  const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight
+  const canvas = document.getElementById("glcanvas")
+
+  gl.viewport(0, 0, canvas.width,canvas.height)
+
+  const aspect = canvas.width / canvas.height
   const zNear = 0.1
   const zFar = 1000.0
   const projectionMatrix = Mat4.create()
