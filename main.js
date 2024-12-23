@@ -199,7 +199,7 @@ function refreshTables(lines, surfacePlate) {
       document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }))
 
       initialize3DTableGraphic(moodyReport)
-      document.getElementById("canvasContainer").style.display = "block";
+      document.getElementById("canvasContainer").style.display = "block"
       lines.forEach(l => {
         Array.from(document.getElementById(l + "Table").getElementsByTagName("tbody")[0].rows).forEach((tableRow, index) => {
           const column3Input = document.createElement("input")
@@ -264,23 +264,60 @@ let buffers = null
 let showLines = true
 let showHeatmap = true
 let lightingOn = true
+let initialTableRotation = Mat4.create()
 let tableRotationMatrix = Mat4.create()
 let tableScaleMatrix = Mat4.create()
 let tableTranslateMatrix = Mat4.create()
+// The viewMatrix is calculated once when initializing the 3D table surface - it does not change between frames.
 let viewMatrix = Mat4.create()
+// The projectionMatrix is set on initialization of the 3D table surface and also when the canvas is resized.
 let projectionMatrix = Mat4.create()
-let initialTableRotation = Mat4.create()
 
-function toClipSpace(canvas, x, y) {
+/**
+ * Converts a canvas-relative position (mouse coordinates) to clip space coordinates 
+ * normalized by the maximum dimension of the canvas's bounding rectangle.
+ *
+ * Clip space coordinates range from -1 to 1, with the origin at the center. 
+ * This method uses uniform scaling based on the largest dimension (width or height) 
+ * of the canvas's bounding rectangle (thus making it aspect ratio independent).
+ *
+ * @param {HTMLCanvasElement} canvas - The canvas element to use as the reference.
+ * @param {number} mouseX - The x-coordinate of the mouse position relative to the canvas.
+ * @param {number} mouseY - The y-coordinate of the mouse position relative to the canvas.
+ * @returns {number[]} A 2D array containing the x and y coordinates in clip space.
+ */
+function toUniformClipSpace(canvas, mouseX, mouseY) {
   const res = Math.max(canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height) - 1
   return [
-    (2 * (x - canvas.getBoundingClientRect().x) - canvas.getBoundingClientRect().width - 1) / res,
-    (2 * (y - canvas.getBoundingClientRect().y) - canvas.getBoundingClientRect().height - 1) / res
+    (2 * (mouseX - canvas.getBoundingClientRect().x) - canvas.getBoundingClientRect().width - 1) / res,
+    (2 * (mouseY - canvas.getBoundingClientRect().y) - canvas.getBoundingClientRect().height - 1) / res
   ]
 }
 
+/**
+ * Converts a canvas-relative position (mouse coordinates) to clip space coordinates 
+ * normalized by the intrinsic dimensions of the canvas element.
+ *
+ * Clip space coordinates range from -1 to 1, with the origin at the center. 
+ * This method scales the position using the canvas's intrinsic width and height.
+ *
+ * @param {HTMLCanvasElement} canvas - The canvas element to use as the reference.
+ * @param {number} mouseX - The x-coordinate of the mouse position relative to the canvas.
+ * @param {number} mouseY - The y-coordinate of the mouse position relative to the canvas.
+ * @returns {number[]} A 2D array containing the x and y coordinates in clip space.
+ */
+function toCanvasClipSpace(canvas, mouseX, mouseY) {
+  const cssX = mouseX - canvas.getBoundingClientRect().left
+  const cssY = mouseY - canvas.getBoundingClientRect().top
+
+  const normalizedX = cssX / canvas.getBoundingClientRect().width
+  const normalizedY = cssY / canvas.getBoundingClientRect().height
+
+  return [normalizedX * 2 - 1, normalizedY * -2 + 1]
+}
+
 function mapToSphere(mouseX, mouseY, canvas) {
-  const xy = toClipSpace(canvas, mouseX, mouseY)
+  const xy = toUniformClipSpace(canvas, mouseX, mouseY)
   const x = xy[0]
   const y = xy[1]
   const lengthSquared = x * x + y * y
@@ -364,7 +401,7 @@ function initialize3DTableGraphic(moodyReport) {
   }
 
   document.onmouseup = () => { 
-    startVectorMapped = null 
+    startVectorMapped = null
     initialTableRotation = tableRotationMatrix
   }
 
@@ -385,7 +422,6 @@ function initialize3DTableGraphic(moodyReport) {
       }
 
       tableRotationMatrix = Mat4.create()
-      // Save the rotation between successive drags.
       tableRotationMatrix.multiply(initialTableRotation)
       // We want rotation to be centered on the center of the table.
       tableRotationMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
@@ -537,10 +573,13 @@ function initialize3DTableGraphic(moodyReport) {
 
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
 function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
+  // We must set the model matrix to identity here because we are using relative (incremental) transforms.
+  // We need to make it so that all of our event handlers only mess with currentTransformMatrix, and then that
+  // will be applied to the model matrix.
   const tableModelMatrix = Mat4.create()
-  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableScaleMatrix)
-  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableTranslateMatrix)
-  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableRotationMatrix)
+  tableModelMatrix.multiply(tableScaleMatrix)
+  tableModelMatrix.multiply(tableTranslateMatrix)
+  tableModelMatrix.multiply(tableRotationMatrix)
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clearDepth(1.0)
