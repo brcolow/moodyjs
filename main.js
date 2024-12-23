@@ -199,7 +199,7 @@ function refreshTables(lines, surfacePlate) {
       document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }))
 
       initialize3DTableGraphic(moodyReport)
-      document.getElementById("canvasContainer").style.display = "block";
+      document.getElementById("canvasContainer").style.display = "block"
       lines.forEach(l => {
         Array.from(document.getElementById(l + "Table").getElementsByTagName("tbody")[0].rows).forEach((tableRow, index) => {
           const column3Input = document.createElement("input")
@@ -271,16 +271,51 @@ let viewMatrix = Mat4.create()
 let projectionMatrix = Mat4.create()
 let initialTableRotation = Mat4.create()
 
-function toClipSpace(canvas, x, y) {
+/**
+ * Converts a canvas-relative position (mouse coordinates) to clip space coordinates 
+ * normalized by the maximum dimension of the canvas's bounding rectangle.
+ *
+ * Clip space coordinates range from -1 to 1, with the origin at the center. 
+ * This method uses uniform scaling based on the largest dimension (width or height) 
+ * of the canvas's bounding rectangle (thus making it aspect ratio independent).
+ *
+ * @param {HTMLCanvasElement} canvas - The canvas element to use as the reference.
+ * @param {number} mouseX - The x-coordinate of the mouse position relative to the canvas.
+ * @param {number} mouseY - The y-coordinate of the mouse position relative to the canvas.
+ * @returns {number[]} A 2D array containing the x and y coordinates in clip space.
+ */
+function toUniformClipSpace(canvas, mouseX, mouseY) {
   const res = Math.max(canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height) - 1
   return [
-    (2 * (x - canvas.getBoundingClientRect().x) - canvas.getBoundingClientRect().width - 1) / res,
-    (2 * (y - canvas.getBoundingClientRect().y) - canvas.getBoundingClientRect().height - 1) / res
+    (2 * (mouseX - canvas.getBoundingClientRect().x) - canvas.getBoundingClientRect().width - 1) / res,
+    (2 * (mouseY - canvas.getBoundingClientRect().y) - canvas.getBoundingClientRect().height - 1) / res
   ]
 }
 
+/**
+ * Converts a canvas-relative position (mouse coordinates) to clip space coordinates 
+ * normalized by the intrinsic dimensions of the canvas element.
+ *
+ * Clip space coordinates range from -1 to 1, with the origin at the center. 
+ * This method scales the position using the canvas's intrinsic width and height.
+ *
+ * @param {HTMLCanvasElement} canvas - The canvas element to use as the reference.
+ * @param {number} mouseX - The x-coordinate of the mouse position relative to the canvas.
+ * @param {number} mouseY - The y-coordinate of the mouse position relative to the canvas.
+ * @returns {number[]} A 2D array containing the x and y coordinates in clip space.
+ */
+function toCanvasClipSpace(canvas, mouseX, mouseY) {
+  const cssX = mouseX - canvas.getBoundingClientRect().left
+  const cssY = mouseY - canvas.getBoundingClientRect().top
+
+  const normalizedX = cssX / canvas.getBoundingClientRect().width
+  const normalizedY = cssY / canvas.getBoundingClientRect().height
+
+  return [normalizedX * 2 - 1, normalizedY * -2 + 1]
+}
+
 function mapToSphere(mouseX, mouseY, canvas) {
-  const xy = toClipSpace(canvas, mouseX, mouseY)
+  const xy = toUniformClipSpace(canvas, mouseX, mouseY)
   const x = xy[0]
   const y = xy[1]
   const lengthSquared = x * x + y * y
