@@ -267,6 +267,8 @@ let lightingOn = true
 let tableRotationMatrix = Mat4.create()
 let tableScaleMatrix = Mat4.create()
 let tableTranslateMatrix = Mat4.create()
+let viewMatrix = Mat4.create()
+let projectionMatrix = Mat4.create()
 let initialTableRotation = Mat4.create()
 
 function toClipSpace(canvas, x, y) {
@@ -306,8 +308,8 @@ function getBoundingBox(moodyReport) {
 
 function initialize3DTableGraphic(moodyReport) {
   const canvas = document.getElementById("glcanvas")
-  // const gl = canvas.getContext("webgl2")
-  const gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"))
+  const gl = canvas.getContext("webgl2")
+  // const gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"))
   if (gl === null) {
     console.log("Unable to initialize WebGL. Your browser or machine may not support it.")
     const ctx = canvas.getContext("2d")
@@ -336,12 +338,21 @@ function initialize3DTableGraphic(moodyReport) {
     for (let entry of entries) {
       const { width, height } = entry.contentRect
       const canvas = document.getElementById("glcanvas")
+      let sizeChanged = false
       if (width > document.getElementById("canvasContainer").style.minWidth) {
         canvas.width = width
+        sizeChanged = true
       }
       if (height > document.getElementById("canvasContainer").style.minHeight) {
         canvas.height = height
+        sizeChanged = true
       }
+      const fieldOfView = (45 * Math.PI) / 180 // radians
+      const aspect = canvas.width / canvas.height
+      const zNear = 0.1
+      const zFar = 1000.0
+
+      projectionMatrix.perspective(fieldOfView, aspect, zNear, zFar)
     }
   })
 
@@ -487,7 +498,6 @@ function initialize3DTableGraphic(moodyReport) {
   function render(now) {
     now = updateFps(now)
 
-    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
     drawTableSurface(moodyReport, gl, programInfo, buffers, texture)
     requestAnimationFrame(render)
   }
@@ -517,6 +527,12 @@ function initialize3DTableGraphic(moodyReport) {
   let   totalFPS = 0
   const fpsElem = document.querySelector("#fps")
   const avgElem = document.querySelector("#avg")
+
+  boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
+
+  viewMatrix.translate([-(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2,
+  -(boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2,
+  -(boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) * 8])
 }
 
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
@@ -533,22 +549,9 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-  const fieldOfView = (45 * Math.PI) / 180 // radians
   const canvas = document.getElementById("glcanvas")
 
-  gl.viewport(0, 0, canvas.width,canvas.height)
-
-  const aspect = canvas.width / canvas.height
-  const zNear = 0.1
-  const zFar = 1000.0
-  const projectionMatrix = Mat4.create()
-
-  projectionMatrix.perspective(fieldOfView, aspect, zNear, zFar)
-
-  const viewMatrix = Mat4.create()
-  viewMatrix.translate([-(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
-    -(boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
-    -(boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) * 8])
+  gl.viewport(0, 0, canvas.width, canvas.height)
 
   setPositionAttribute(gl, buffers, programInfo)
   setNormalAttribute(gl, buffers, programInfo)
