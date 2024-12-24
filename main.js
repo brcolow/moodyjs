@@ -269,7 +269,6 @@ let tableScaleMatrix = Mat4.create()
 let tableTranslateMatrix = Mat4.create()
 let viewMatrix = Mat4.create()
 let projectionMatrix = Mat4.create()
-let initialTableRotation = Mat4.create()
 
 /**
  * Converts a canvas-relative position (mouse coordinates) to clip space coordinates 
@@ -395,12 +394,12 @@ function initialize3DTableGraphic(moodyReport) {
 
   canvas.onmousedown = event => {
     startVectorMapped = mapToSphere(event.clientX, event.clientY, canvas)
-    initialTableRotation = tableRotationMatrix
+    tableRotationMatrix = Mat4.create()
   }
 
   document.onmouseup = () => { 
     startVectorMapped = null 
-    initialTableRotation = tableRotationMatrix
+    tableRotationMatrix = Mat4.create()
   }
 
   document.onmousemove = event => {
@@ -420,8 +419,6 @@ function initialize3DTableGraphic(moodyReport) {
       }
 
       tableRotationMatrix = Mat4.create()
-      // Save the rotation between successive drags.
-      tableRotationMatrix.multiply(initialTableRotation)
       // We want rotation to be centered on the center of the table.
       tableRotationMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2, 
       (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2, 
@@ -572,10 +569,13 @@ function initialize3DTableGraphic(moodyReport) {
 
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
 function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
+  // We must set the model matrix to identity here because we are using relative (incremental) transforms.
+  // We need to make it so that all of our event handlers only mess with currentTransformMatrix, and then that
+  // will be applied to the model matrix.
   const tableModelMatrix = Mat4.create()
-  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableScaleMatrix)
-  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableTranslateMatrix)
-  Mat4.multiply(tableModelMatrix, tableModelMatrix, tableRotationMatrix)
+  tableModelMatrix.multiply(tableScaleMatrix)
+  tableModelMatrix.multiply(tableTranslateMatrix)
+  tableModelMatrix.multiply(tableRotationMatrix)
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clearDepth(1.0)
