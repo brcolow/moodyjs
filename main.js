@@ -838,19 +838,19 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
     boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
   }
   const tableSurfaceRatio = (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX)
-  const numRepeatsX = 1
-  const numRepeatsY = numRepeatsX * tableSurfaceRatio
   //  Map [minX, maxX] => [0, 1] and [minY, maxY] => [0, 1]
   // (val - A) * (b - a) / (B - A) + a
+  const numRepeatsX = 1
+  const numRepeatsY = numRepeatsX * tableSurfaceRatio;
+
   const triangleTextureCoords = triangulation.map((triangle) => [
-    ((triangle.v0.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX), 
-    ((triangle.v0.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
-    ((triangle.v1.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].maxX), 
-    ((triangle.v1.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
-    ((triangle.v2.x - boundingBoxCache[zMultiplier].maxX) * (numRepeatsX + 1)) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX), 
-    ((triangle.v2.y - boundingBoxCache[zMultiplier].maxY) * (numRepeatsY + 1)) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
-  ]
-  ).flat(1)
+      ((triangle.v0.x - boundingBoxCache[zMultiplier].minX) * numRepeatsX) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX),
+      ((triangle.v0.y - boundingBoxCache[zMultiplier].minY) * numRepeatsY) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
+      ((triangle.v1.x - boundingBoxCache[zMultiplier].minX) * numRepeatsX) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX),
+      ((triangle.v1.y - boundingBoxCache[zMultiplier].minY) * numRepeatsY) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
+      ((triangle.v2.x - boundingBoxCache[zMultiplier].minX) * numRepeatsX) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX),
+      ((triangle.v2.y - boundingBoxCache[zMultiplier].minY) * numRepeatsY) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
+  ]).flat(1)
 
   const textureCoordinates = new Float32Array(lineTextureCoords.concat(triangleTextureCoords).concat(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0))
   const textureBuffer = gl.createBuffer()
