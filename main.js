@@ -260,7 +260,7 @@ const boundingBoxCache = []
 let startVectorMapped = null
 let cumulativeZoomFactor = 1
 let zMultiplier = -1
-let buffers = null
+let tableVAO = null
 let showLines = true
 let showHeatmap = true
 let lightingOn = true
@@ -364,7 +364,7 @@ function initialize3DTableGraphic(moodyReport) {
     if (!(zMultiplier in boundingBoxCache)) {
       boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
     }
-    buffers = getBuffers(gl, moodyReport, zMultiplier)
+    createAndBindTableVAO(moodyReport, gl, programInfo)
   })
 
   document.getElementById("showLines").addEventListener("change", event => showLines = event.target.checked)
@@ -529,7 +529,8 @@ function initialize3DTableGraphic(moodyReport) {
       lightingOn: gl.getUniformLocation(shaderProgram, "lightingOn"),
     },
   }
-  buffers = getBuffers(gl, moodyReport, zMultiplier)
+
+  const buffers = createAndBindTableVAO(moodyReport, gl, programInfo)
 
   function render(now) {
     now = updateFps(now)
@@ -571,6 +572,18 @@ function initialize3DTableGraphic(moodyReport) {
   -(boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) * 8])
 }
 
+function createAndBindTableVAO(moodyReport, gl, programInfo) {
+  tableVAO = gl.createVertexArray()
+  gl.bindVertexArray(tableVAO)
+  const buffers = getBuffers(gl, moodyReport, zMultiplier)
+  setPositionAttribute(gl, buffers, programInfo)
+  setNormalAttribute(gl, buffers, programInfo)
+  setColorAttribute(gl, buffers, programInfo)
+  setTextureAttribute(gl, buffers, programInfo)
+  setTypeAttribute(gl, buffers, programInfo)
+  return buffers
+}
+
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
 function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   // We must set the model matrix to identity here because we are using relative (incremental) transforms.
@@ -592,12 +605,7 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
 
   gl.viewport(0, 0, canvas.width, canvas.height)
 
-  setPositionAttribute(gl, buffers, programInfo)
-  setNormalAttribute(gl, buffers, programInfo)
-  setColorAttribute(gl, buffers, programInfo)
-  setTextureAttribute(gl, buffers, programInfo)
-  setTypeAttribute(gl, buffers, programInfo)
-
+  gl.bindVertexArray(tableVAO)
   gl.useProgram(programInfo.program)
 
   const normalMatrix = Mat4.create()
