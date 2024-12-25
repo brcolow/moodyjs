@@ -570,6 +570,8 @@ function initialize3DTableGraphic(moodyReport) {
   viewMatrix.translate([-(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2,
   -(boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2,
   -(boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) * 8])
+  gl.bindVertexArray(null)
+  gl.bindBuffer(gl.ARRAY_BUFFER, null)
 }
 
 function createAndBindTableVAO(moodyReport, gl, programInfo) {
@@ -668,6 +670,9 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   offset += vertexCount / 3
   vertexCount = 6
   gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+
+  gl.bindVertexArray(null)
+  gl.bindBuffer(gl.ARRAY_BUFFER, null)
 }
 
 const vsSource = `#version 300 es
