@@ -3,9 +3,8 @@ import { Vector3 } from "./math.js"
 const sineOfOneArcsecond = 0.00000484813
 
 function roundTo(n, numDecimalPlaces) {
-  const multiplicator = Math.pow(10, numDecimalPlaces)
-  n = parseFloat((n * multiplicator).toFixed(11))
-  return Math.round(n) / multiplicator
+  const factor = Math.pow(10, numDecimalPlaces)
+  return Math.round(n * factor) / factor
 }
 
 class Unit {
