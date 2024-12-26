@@ -2,9 +2,14 @@ import { Vector3 } from "./math.js"
 
 const sineOfOneArcsecond = 0.00000484813
 
-function roundTo(n, numDecimalPlaces) {
+function roundTo(n, numDecimalPlaces = 2) {
   const factor = Math.pow(10, numDecimalPlaces)
-  return Math.round(n * factor) / factor
+  return Math.floor(n * factor + 0.5) / factor
+}
+
+function roundToSlow(n, numDecimalPlaces) {
+  const factor = Math.pow(10, numDecimalPlaces)
+  return (Math.floor(n * factor + 0.5) / factor).toFixed(numDecimalPlaces)
 }
 
 class Unit {
@@ -489,4 +494,4 @@ function getNumberOfStations(line, surfacePlate) {
   }
 }
 
-export { getNumberOfStations, MoodyReport, SurfacePlate, roundTo }
+export { getNumberOfStations, MoodyReport, SurfacePlate, roundTo, roundToSlow }

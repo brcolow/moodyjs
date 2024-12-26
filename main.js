@@ -1,7 +1,7 @@
 import { interpolate, turboColormapData } from "./colormap.js"
 import { bowyerWatson, Vertex } from "./delaunay.js"
 import { Mat4, Quat, Vector3 } from "./math.js"
-import { getNumberOfStations, MoodyReport, SurfacePlate, roundTo } from "./moody.js"
+import { getNumberOfStations, MoodyReport, SurfacePlate, roundTo, roundToSlow } from "./moody.js"
 import WebGLDebugUtils from "./webgl-debug.js"
 
 // Moody's original paper states 48x78 which is a non-standard size. It is most likely a typo. Bruce Allen's corrections paper states:
@@ -72,23 +72,40 @@ function createTables() {
   const plateDiagonalFull = Math.sqrt(((surfacePlate.surfacePlateHeightInches * surfacePlate.surfacePlateHeightInches) +
     (surfacePlate.surfacePlateWidthInches * surfacePlate.surfacePlateWidthInches)))
   const gradeAAFlatnessReq = .04 * (plateDiagonalFull * plateDiagonalFull) + 40
-  document.getElementById('gradeAA').value = roundTo(gradeAAFlatnessReq, 2)
-  document.getElementById('gradeA').value = roundTo(gradeAAFlatnessReq * 2, 2)
-  document.getElementById('gradeB').value = roundTo(gradeAAFlatnessReq * 4, 2)
+  // Convert microinches to micrometers (microns)
+  const microinchesToMicrons = .0254
+  document.getElementById('gradeAAInches').value = roundToSlow(gradeAAFlatnessReq, 2)
+  document.getElementById('gradeAInches').value = roundToSlow(gradeAAFlatnessReq * 2, 2)
+  document.getElementById('gradeBInches').value = roundToSlow(gradeAAFlatnessReq * 4, 2)
+  document.getElementById('gradeAAMetric').value = roundToSlow(gradeAAFlatnessReq * microinchesToMicrons, 2)
+  document.getElementById('gradeAMetric').value = roundToSlow(gradeAAFlatnessReq * 2 * microinchesToMicrons, 2)
+  document.getElementById('gradeBMetric').value = roundToSlow(gradeAAFlatnessReq * 4 * microinchesToMicrons, 2)
   const plateDiagonalFullMicrometers = plateDiagonalFull * 25.4
+  const micronsToMicroInches = 39.37
   const isoGrade0FlatnessReq = 0.003 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 2.5
-  document.getElementById('grade0').value = roundTo(isoGrade0FlatnessReq * 39.37, 2) // Convert from micrometers to microinches
+  document.getElementById('grade0Inches').value = roundToSlow(isoGrade0FlatnessReq * micronsToMicroInches, 2) // Convert from micrometers to microinches
   const isoGrade1FlatnessReq = 0.006 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 5
-  document.getElementById('grade1').value = roundTo(isoGrade1FlatnessReq * 39.37, 2) // Convert from micrometers to microinches
+  document.getElementById('grade1Inches').value = roundToSlow(isoGrade1FlatnessReq * micronsToMicroInches, 2) // Convert from micrometers to microinches
   const isoGrade2FlatnessReq = 0.012 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 10
-  document.getElementById('grade2').value = roundTo(isoGrade2FlatnessReq * 39.37, 2) // Convert from micrometers to microinches
+  document.getElementById('grade2Inches').value = roundToSlow(isoGrade2FlatnessReq * micronsToMicroInches, 2) // Convert from micrometers to microinches
   const isoGrade3FlatnessReq = 0.024 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 20
-  document.getElementById('grade3').value = roundTo(isoGrade3FlatnessReq * 39.37, 2) // Convert from micrometers to microinches
-  const flatnessInputs = [document.getElementById('gradeAA'), document.getElementById('gradeA'), document.getElementById('gradeB'),
-    document.getElementById('grade0'), document.getElementById('grade1'), document.getElementById('grade2'), document.getElementById('grade3')]
-  document.getElementById("overallFlatness").addEventListener("input", event => {
+  document.getElementById('grade3Inches').value = roundToSlow(isoGrade3FlatnessReq * micronsToMicroInches, 2) // Convert from micrometers to microinches
+  document.getElementById('grade0Metric').value = roundToSlow(isoGrade0FlatnessReq, 2)
+  document.getElementById('grade1Metric').value = roundToSlow(isoGrade1FlatnessReq, 2)
+  document.getElementById('grade2Metric').value = roundToSlow(isoGrade2FlatnessReq, 2)
+  document.getElementById('grade3Metric').value = roundToSlow(isoGrade3FlatnessReq, 2)
+
+  const flatnessInputs = [document.getElementById('gradeAAInches'), document.getElementById('gradeAInches'), document.getElementById('gradeBInches'),
+    document.getElementById('gradeAAMetric'), document.getElementById('gradeAMetric'), document.getElementById('gradeBMetric'),
+    document.getElementById('grade0Inches'), document.getElementById('grade1Inches'), document.getElementById('grade2Inches'), document.getElementById('grade3Inches'),
+    document.getElementById('grade0Metric'), document.getElementById('grade1Metric'), document.getElementById('grade2Metric'), document.getElementById('grade3Metric')]
+  const inchMultiplier = 1 // No multiplier for inches
+  const metricMultiplier = 25.4 // Convert inches to micrometers (you can adjust the unit if needed)
+  document.getElementById("overallFlatnessInch").addEventListener("input", event => {
    for (const flatnessInput of flatnessInputs) {
-     if (Number(event.target.value) <= Number(flatnessInput.value)) {
+    const isMetric = flatnessInput.id.endsWith('Metric')
+    const multiplier = isMetric ? metricMultiplier : inchMultiplier // Use appropriate multiplier
+     if (Number(event.target.value) <= Number(flatnessInput.value) * multiplier) {
        flatnessInput.style.background = '#C6EFCE'
      } else {
        flatnessInput.style.background = '#FFC7CE'
@@ -195,8 +212,10 @@ function refreshTables(lines, surfacePlate) {
 
       const allZPositions = moodyReport.vertices().map(point => point[2])
       const overallFlatness = (Math.max(...allZPositions) - Math.min(...allZPositions)) * 1000000 // Convert inches to microinches.
-      document.getElementById("overallFlatness").value = overallFlatness
-      document.getElementById("overallFlatness").dispatchEvent(new Event('input', { 'bubbles': true }))
+      document.getElementById("overallFlatnessInch").value = roundTo(overallFlatness, 2)
+      document.getElementById("overallFlatnessInch").dispatchEvent(new Event('input', { 'bubbles': true }))
+      document.getElementById("overallFlatnessMetric").value = roundTo(overallFlatness * 0.0254, 2)
+      document.getElementById("overallFlatnessMetric").dispatchEvent(new Event('input', { 'bubbles': true }))
 
       initialize3DTableGraphic(moodyReport)
       document.getElementById("canvasContainer").style.display = "block"
@@ -846,7 +865,7 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   //  Map [minX, maxX] => [0, 1] and [minY, maxY] => [0, 1]
   // (val - A) * (b - a) / (B - A) + a
   const numRepeatsX = 1
-  const numRepeatsY = numRepeatsX * tableSurfaceRatio;
+  const numRepeatsY = numRepeatsX * tableSurfaceRatio
 
   const triangleTextureCoords = triangulation.map((triangle) => [
       ((triangle.v0.x - boundingBoxCache[zMultiplier].minX) * numRepeatsX) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX),
