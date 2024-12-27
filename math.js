@@ -137,15 +137,15 @@ class Vector3 extends Float32Array {
     return Vector3.norm(this, this)
   }
 
-  static scale(out, a) {
+  static scale(out, a, scale) {
     out[0] = a[0] * scale
     out[1] = a[1] * scale
     out[2] = a[2] * scale
     return out
   }
 
-  scale(a) {
-    return Vector3.scale(this, a)
+  scale(a, scale) {
+    return Vector3.scale(this, a, scale)
   }
 
   static magnitude(a) {

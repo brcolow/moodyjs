@@ -1,5 +1,3 @@
-import { Vector3 } from "./math.js"
-
 const sineOfOneArcsecond = 0.00000484813
 
 function roundTo(n, numDecimalPlaces = 2) {

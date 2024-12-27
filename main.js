@@ -403,12 +403,14 @@ function initialize3DTableGraphic(moodyReport) {
         canvas.height = height
         sizeChanged = true
       }
-      const fieldOfView = (45 * Math.PI) / 180 // radians
-      const aspect = canvas.width / canvas.height
-      const zNear = 0.1
-      const zFar = 1000.0
 
-      projectionMatrix.perspective(fieldOfView, aspect, zNear, zFar)
+      if (sizeChanged) {
+        const fieldOfView = (45 * Math.PI) / 180 // radians
+        const aspect = canvas.width / canvas.height
+        const zNear = 0.1
+        const zFar = 1000.0
+        projectionMatrix.perspective(fieldOfView, aspect, zNear, zFar)
+      }
     }
   })
 
@@ -552,7 +554,7 @@ function initialize3DTableGraphic(moodyReport) {
   const buffers = createAndBindTableVAO(moodyReport, gl, programInfo)
 
   function render(now) {
-    now = updateFps(now)
+    updateFps(now)
 
     drawTableSurface(moodyReport, gl, programInfo, buffers, texture)
     requestAnimationFrame(render)
@@ -572,7 +574,6 @@ function initialize3DTableGraphic(moodyReport) {
     frameCursor %= maxFrames
     const averageFPS = totalFPS / numFrames
     avgElem.textContent = averageFPS.toFixed(1)
-    return now
   }
 
   let   then = 0
@@ -839,7 +840,7 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
 
   // Calculate and create normal buffer.
-  const lineNormals = moodyReport.vertices(zMultiplier).map(v => [0.0, 0.0, 0.0]).flat(1)
+  const lineNormals = moodyReport.vertices(zMultiplier).map(() => [0.0, 0.0, 0.0]).flat(1)
   // Each triangle has 3 vertices with the same surface normal.
   const triangleNormals = triangulation.map(triangle => {
     const length = Math.sqrt(triangle.surfaceNormal().x * triangle.surfaceNormal().x +
@@ -856,7 +857,7 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
 
   // Calculate and create texture buffer.
-  const lineTextureCoords = moodyReport.vertices(zMultiplier).map(v => [0.0, 1.0]).flat(1)
+  const lineTextureCoords = moodyReport.vertices(zMultiplier).map(() => [0.0, 1.0]).flat(1)
 
   if (!(zMultiplier in boundingBoxCache)) {
     boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
@@ -882,8 +883,8 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   gl.bufferData(gl.ARRAY_BUFFER, textureCoordinates, gl.STATIC_DRAW)
 
   const types = new Float32Array(
-    moodyReport.vertices(zMultiplier).map(v => [0.0]).flat(1) // "Union jack" colored lines have type "0.0"
-    .concat(triangulation.map(_ => [1.0, 1.0, 1.0]).flat(1))  // Table vertices have type "1.0"
+    moodyReport.vertices(zMultiplier).map(() => [0.0]).flat(1) // "Union jack" colored lines have type "0.0"
+    .concat(triangulation.map(() => [1.0, 1.0, 1.0]).flat(1))  // Table vertices have type "1.0"
     .concat(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))                    // Axis vertices have type "0.0"
 
   const typeBuffer = gl.createBuffer()
@@ -900,7 +901,7 @@ function getColorBuffer(gl, moodyReport, triangleVertices) {
   const minZ = Math.min(...triangleZValues)
   const maxZ = Math.max(...triangleZValues)
   // In case all values are the same minZ = maxZ (i.e. it is a totally flat plate with zero deviation) so we must avoid division by zero - just set all values to 0.0.
-  const normalizedTriangleZValues = minZ === maxZ ? triangleZValues.map(value => 0.0) : triangleZValues.map(value => (value - minZ) / (maxZ - minZ))
+  const normalizedTriangleZValues = minZ === maxZ ? triangleZValues.map(() => 0.0) : triangleZValues.map(value => (value - minZ) / (maxZ - minZ))
   const colorMappedZValues = normalizedTriangleZValues.map(value => interpolate(turboColormapData, value))
   console.log(colorMappedZValues)
   const colors = new Array(moodyReport.topStartingDiagonalTable.numStations).fill([0.9568627450980393, 0.2627450980392157, 0.21176470588235294, 1.0]).flat(1)
