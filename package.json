@@ -4,8 +4,9 @@
 	"description": "",
 	"main": "moody.js",
 	"scripts": {
+		"lint": "npx eslint .",
 		"serve": "npx http-server -c-1 -p 5000 -o",
-		"lint": "npx eslint ."
+		"test": "npx vitest"
 	},
 	"keywords": [],
 	"author": "Michael Ennen (brcolow)",
@@ -13,6 +14,7 @@
 	"devDependencies": {
 		"@eslint/js": "^9.17.0",
 		"eslint": "^9.17.0",
-		"globals": "^15.14.0"
+		"globals": "^15.14.0",
+		"vitest": "^2.1.8"
 	}
 }

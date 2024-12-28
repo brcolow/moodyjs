@@ -30,8 +30,8 @@ class Vector2 extends Float32Array {
     }
   }
 
-  get x() { return this[0]; }
-  get y() { return this[1]; }
+  get x() { return this[0] }
+  get y() { return this[1] }
 }
 
 class Vector3 extends Float32Array {
@@ -56,6 +56,10 @@ class Vector3 extends Float32Array {
         super(3)
         break
     }
+  }
+
+  static create(...values) {
+    return new Vector3(...values)
   }
 
   equals(b) {
@@ -173,6 +177,21 @@ class Mat4 extends Float32Array {
       case 16:
         super(values)
         break
+      case 2:
+        super(values[0], values[1], 16)
+        break
+      case 1:
+        const v = values[0]
+        if (typeof v === 'number') {
+          super([
+            v, v, v, v,
+            v, v, v, v,
+            v, v, v, v,
+            v, v, v, v])
+        } else {
+          super(v, 0, 16)
+        }
+        break
       default:
         super(IDENTITY_4X4)
         break
@@ -180,8 +199,8 @@ class Mat4 extends Float32Array {
   }
 
   // Creates a new identity 4x4 Matrix.
-  static create() {
-    return new Mat4()
+  static create(...values) {
+    return new Mat4(...values)
   }
 
   scale(v) {
@@ -191,18 +210,24 @@ class Mat4 extends Float32Array {
   static scale(out, a, v) {
     const x = v[0]
     const y = v[1]
+    const z = v[2]
 
-    out[0] = x * a[0]
-    out[1] = x * a[1]
-    out[2] = x * a[2]
-
-    out[3] = y * a[3]
-    out[4] = y * a[4]
-    out[5] = y * a[5]
-
-    out[6] = a[6]
-    out[7] = a[7]
-    out[8] = a[8]
+    out[0] = a[0] * x
+    out[1] = a[1] * x
+    out[2] = a[2] * x
+    out[3] = a[3] * x
+    out[4] = a[4] * y
+    out[5] = a[5] * y
+    out[6] = a[6] * y
+    out[7] = a[7] * y
+    out[8] = a[8] * z
+    out[9] = a[9] * z
+    out[10] = a[10] * z
+    out[11] = a[11] * z
+    out[12] = a[12]
+    out[13] = a[13]
+    out[14] = a[14]
+    out[15] = a[15]
     return out
   }
 
@@ -560,12 +585,27 @@ class Quat extends Float32Array {
     }
   }
 
-  static create() {
-    return new Quat()
+  static create(...values) {
+    return new Quat(...values)
   }
 
-  static identity() {
-    return new Quat(1, 0, 0, 0)
+  static identity(out) {
+    if (out === undefined) {
+      return new Quat(0, 0, 0, 1)
+    }
+    out[0] = 0
+    out[1] = 0
+    out[2] = 0
+    out[3] = 1
+    return out
+  }
+
+  identity() {
+    this[0] = 0
+    this[1] = 0
+    this[2] = 0
+    this[3] = 1
+    return this
   }
 
   multiply(b) {
@@ -595,6 +635,7 @@ class Quat extends Float32Array {
     out[1] = a[1] * il
     out[2] = a[2] * il
     out[3] = a[3] * il
+    return out
   }
 
   toMatrix4() {
@@ -604,9 +645,9 @@ class Quat extends Float32Array {
     const y = this[2] * invSqrt
     const z = this[3] * invSqrt
 
-    const wx = w * x, wy = w * y, wz = w * z;
-    const xx = x * x, xy = x * y, xz = x * z;
-    const yy = y * y, yz = y * z, zz = z * z;
+    const wx = w * x, wy = w * y, wz = w * z
+    const xx = x * x, xy = x * y, xz = x * z
+    const yy = y * y, yz = y * z, zz = z * z
 
     return new Mat4(
       1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy), 0,
@@ -614,10 +655,6 @@ class Quat extends Float32Array {
       2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy), 0,
       0, 0, 0, 1)
   }
-
-  yUnitVec3 = new Float32Array([0, 1, 0])
-  xUnitVec3 = new Float32Array([1, 0, 0])
-  tmpVec3 = new Float32Array(3)
 }
 
 export { Mat4, Quat, Vector3 }

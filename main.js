@@ -439,6 +439,8 @@ function initialize3DTableGraphic(moodyReport) {
       let rotationQuat = Quat.identity()
 
       if (axis.magnitude > 0.000001) {
+        // FIXME: The strange order of this may be related to how toMatrix4 is currently not producing correct values.
+        // See tests/quat.spec.js toMatrix4 tests.
         rotationQuat = new Quat(startVectorMapped.dot(currentVectorMapped), axis[0], -axis[1], 0)
       }
 
