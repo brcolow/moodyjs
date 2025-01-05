@@ -5,7 +5,7 @@ const EPSILON = 0.000001
 
 class Vector2 extends Float32Array {
   constructor(...values) {
-    switch(values.length) {
+    switch (values.length) {
       case 2: {
         const v = values[0]
         if (typeof v === 'number') {
@@ -36,7 +36,7 @@ class Vector2 extends Float32Array {
 
 class Vector3 extends Float32Array {
   constructor(...values) {
-    switch(values.length) {
+    switch (values.length) {
       case 3:
         super(values)
         break
@@ -62,6 +62,10 @@ class Vector3 extends Float32Array {
     return new Vector3(...values)
   }
 
+  static clone(a) {
+    return new Vector3(a)
+  }
+
   equals(b) {
     return Vector3.equals(this, this, b)
   }
@@ -83,11 +87,8 @@ class Vector3 extends Float32Array {
   get y() { return this[1] }
   get z() { return this[2] }
 
-  cross(v) {
-    return new Vector3(
-      this.y * v.z - this.z * v.y,
-      this.z * v.x - this.x * v.z,
-      this.x * v.y - this.y * v.x)
+  cross(b) {
+    return Vector3.cross(this, this, b)
   }
 
   static cross(out, a, b) {
@@ -115,8 +116,19 @@ class Vector3 extends Float32Array {
     return out
   }
 
+  sub(b) {
+    return Vector3.sub(this, this, b)
+  }
+
+  static sub(out, a, b) {
+    out[0] = a[0] - b[0]
+    out[1] = a[1] - b[1]
+    out[2] = a[2] - b[2]
+    return out
+  }
+
   dot(b) {
-    return Vector3.dot(this, this, b)
+    return Vector3.dot(this, b)
   }
 
   static dot(a, b) {
@@ -148,8 +160,8 @@ class Vector3 extends Float32Array {
     return out
   }
 
-  scale(a, scale) {
-    return Vector3.scale(this, a, scale)
+  scale(scale) {
+    return Vector3.scale(this, this, scale)
   }
 
   static magnitude(a) {
@@ -162,14 +174,29 @@ class Vector3 extends Float32Array {
   get magnitude() {
     return Vector3.magnitude(this)
   }
+
+  static transformMat4(out, a, m) {
+    const x = a[0],
+      y = a[1],
+      z = a[2]
+    const w = (m[3] * x + m[7] * y + m[11] * z + m[15]) || 1.0
+    out[0] = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w
+    out[1] = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w
+    out[2] = (m[2] * x + m[6] * y + m[10] * z + m[14]) / w
+    return out
+  }
+
+  transformMat4(m) {
+    return Vector3.transformMat4(this, this, m)
+  }
 }
 
 const IDENTITY_4X4 = new Float32Array([
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1,
-  ])
+  1, 0, 0, 0,
+  0, 1, 0, 0,
+  0, 0, 1, 0,
+  0, 0, 0, 1,
+])
 
 class Mat4 extends Float32Array {
   constructor(...values) {
@@ -201,6 +228,10 @@ class Mat4 extends Float32Array {
   // Creates a new identity 4x4 Matrix.
   static create(...values) {
     return new Mat4(...values)
+  }
+
+  static clone(a) {
+    return new Mat4(a)
   }
 
   scale(v) {
@@ -562,7 +593,7 @@ class Mat4 extends Float32Array {
 
 class Quat extends Float32Array {
   constructor(...values) {
-    switch(values.length) {
+    switch (values.length) {
       case 4:
         super(values)
         break
@@ -627,6 +658,10 @@ class Quat extends Float32Array {
     out[2] = az * bw + aw * bz + ax * by - ay * bx
     out[3] = aw * bw - ax * bx - ay * by - az * bz
     return out
+  }
+
+  normalize() {
+    return Quat.normalize(this, this)
   }
 
   static normalize(out, a) {

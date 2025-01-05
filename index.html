@@ -68,6 +68,9 @@
       min-height: 37.5rem;
       display: none;
     }
+    #controls {
+      display: none;
+    }
     .resizeHandle {
       position: absolute;
       width: 0.8125rem;
@@ -104,12 +107,12 @@
       margin-right: 1rem;
     }
     .gradesContainer {
-      display: flex; /* Use flexbox for side-by-side layout */
+      display: flex;
       margin-top: 0.3125rem;
     }
     .gradesColumn {
-      flex: 1; /* Equal width for both columns */
-      margin: 0 1.25rem; /* Add some spacing between columns */
+      flex: 1;
+      margin: 0 1.25rem;
     }
     .overallFlatnessLabel {
       display: inline-block; 
@@ -230,9 +233,27 @@
 <input type="checkbox" id="lightingOn" name="lightingOn" checked/>
 <label for="lightingOn">Lighting On</label><br/><br/>
 <div>FPS: <span id="fps"></span></div>
-<div>Avg FPS: <span id="avg"></span></div>
+<div>Avg FPS: <span id="avg"></span></div><br/>
+<div id="controls"><b>Controls:</b>
+  <br/>Rotate table: Hold left mouse button and move mouse (Also WASD keys).
+  <br/>Move table: Arrow keys.
+  <br/>Zoom on table: Mouse wheel with cursor on table.
+  <br/>Zoom (centered): Ctrl + Mouse wheel.
+  <br/>Reset View: Press "R" key.
+</div>
 <br/>
-<svg id="tableGraphic" preserveAspectRatio="xMaxYMid meet" style="visibility: hidden; max-width: 31.25rem">
+<div id="canvasContainer">
+  <canvas id="glcanvas" width="800" height="600"></canvas>
+  <!--
+  This is preliminary work on being able to resize the canvas from all corners but for now seems like more work than it's worth. We do keep the bottom-right resize
+  handle currently because it makes the resize graphic more visible to the user.
+  <div class="resizeHandle topLeft"></div>
+  <div class="resizeHandle topRight"></div>
+  <div class="resizeHandle bottomLeft"></div>
+  -->
+  <div class="resizeHandle bottomRight"></div>
+</div>
+<svg id="tableGraphic" preserveAspectRatio="xMaxYMid meet" style="visibility: hidden; max-width: 31.25rem; margin-top: 0.250rem;">
   <rect id="outsideRect" x="0" y="0" fill="white" stroke="black" stroke-width="0.01em"/>
   <rect id="insideRect" fill="white" stroke="black" stroke-width="0.01em"/>
   <g id="topStartingDiagonalLineGroup" stroke="var(--l1-color)" fill="var(--l1-color)" stroke-width="0.018em">
@@ -287,17 +308,6 @@
     </text>
   </g>
 </svg>
-<div id="canvasContainer">
-  <canvas id="glcanvas" width="800" height="600"></canvas>
-  <!--
-  This is preliminary work on being able to resize the canvas from all corners but for now seems like more work than it's worth. We do keep the bottom-right resize
-  handle currently because it makes the resize graphic more visible to the user.
-  <div class="resizeHandle topLeft"></div>
-  <div class="resizeHandle topRight"></div>
-  <div class="resizeHandle bottomLeft"></div>
-  -->
-  <div class="resizeHandle bottomRight"></div>
-</div>
 <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
   <div style="flex: 10;">
     <table id="topStartingDiagonalTable" style="visibility: hidden; border: 0.1875rem solid var(--l1-color);">

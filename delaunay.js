@@ -1,5 +1,5 @@
 import { Vector3 } from "./math.js"
-  
+
 // Delaunay Triangulation from: https://github.com/msavela/delaunay/
 class Vertex {
   constructor(x, y, z) {
@@ -12,7 +12,7 @@ class Vertex {
     return this.x === vertex.x && this.y == vertex.y && this.z == vertex.z
   }
 }
-  
+
 class Edge {
   constructor(v0, v1) {
     this.v0 = v0
@@ -24,7 +24,7 @@ class Edge {
       (this.v0.equals(edge.v1) && this.v1.equals(edge.v0))
   }
 }
-  
+
 class Triangle {
   constructor(v0, v1, v2) {
     this.v0 = v0
@@ -45,7 +45,7 @@ class Triangle {
 
     const E = A * (this.v0.x + this.v1.x) + B * (this.v0.y + this.v1.y)
     const F = C * (this.v0.x + this.v2.x) + D * (this.v0.y + this.v2.y)
- 
+
     const G = 2.0 * (A * (this.v2.y - this.v1.y) - B * (this.v2.x - this.v1.x))
 
     if (G == 0) {
@@ -79,7 +79,8 @@ class Triangle {
   }
 
   surfaceNormal() {
-    return this.edgeVec1.cross(this.edgeVec0)
+    let normalVector = Vector3.create()
+    return Vector3.cross(normalVector, this.edgeVec1, this.edgeVec0)
   }
 }
 
