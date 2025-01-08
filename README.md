@@ -97,7 +97,7 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 * (More) Metric support.
 * Show the locations of the carriage/sled as tick marks on the lines
 * The 'heat map' is pretty, but with everything set to zero it is showing a lot of distortion - look into this.
-* The UI takes up a lot of space, the data entry would be better as tabbed tables selectable by clicking on the corresponding line, and segments should be shown and similarly clickable to highlight the entry field.
+* The UI takes up a lot of space, the data entry would be better as tabbed tables selectable by clicking on the corresponding line, and segments should be shown and similarly clickable to highlight the entry field. See https://dev.to/joxx/building-a-tab-component-with-pure-css-using-radio-and-label-tags-200b
 * Be as color-blind friendly as possible.
 
 ## Developer Notes
