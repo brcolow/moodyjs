@@ -1,5 +1,5 @@
 import { interpolate, turboColormapData } from "./colormap.js"
-import { bowyerWatson, Vertex } from "./delaunay.js"
+import { bowyerWatson, Triangle, Vertex } from "./delaunay.js"
 import { Mat4, Quat, Vector3 } from "./math.js"
 import { getNumberOfStations, MoodyReport, SurfacePlate, roundTo, roundToSlow } from "./moody.js"
 import WebGLDebugUtils from "./webgl-debug.js"
@@ -624,16 +624,16 @@ function initialize3DTableGraphic(moodyReport) {
     keyMap[event.key] = true
     const translateMatrix = Mat4.create()
     if (keyMap['ArrowUp'] === true) {
-      translateMatrix.translate([0, 1.0, 0.0])
-    }
-    if (keyMap['ArrowDown'] === true) {
       translateMatrix.translate([0, -1.0, 0.0])
     }
+    if (keyMap['ArrowDown'] === true) {
+      translateMatrix.translate([0, 1.0, 0.0])
+    }
     if (keyMap['ArrowRight'] === true) {
-      translateMatrix.translate([1.0, 0.0, 0.0])
+      translateMatrix.translate([-1.0, 0.0, 0.0])
     }
     if (keyMap['ArrowLeft'] === true) {
-      translateMatrix.translate([-1.0, 0.0, 0.0])
+      translateMatrix.translate([1.0, 0.0, 0.0])
     }
     if (keyMap['w'] === true) {
       translateMatrix.translate([0.0, 0.0, 1.0])
@@ -813,10 +813,11 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   vertexCount = buffers.triangleVertices.length
   gl.drawArrays(gl.TRIANGLES, offset, vertexCount / 3)
 
-  gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, Mat4.create())
+  gl.enable(gl.BLEND)
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
   offset += vertexCount / 3
-  vertexCount = 6
-  gl.drawArrays(gl.LINE_STRIP, offset, vertexCount)
+  vertexCount = buffers.tableThicknessVertices.length
+  gl.drawArrays(gl.TRIANGLES, offset, vertexCount)
 
   gl.bindVertexArray(null)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
@@ -924,7 +925,7 @@ void main() {
 
 function getBuffers(gl, moodyReport, zMultiplier) {
   const buffers = getNonColorBuffers(gl, moodyReport, zMultiplier)
-  const lineColorBuffer = getColorBuffer(gl, moodyReport, buffers.triangleVertices)
+  const lineColorBuffer = getColorBuffer(gl, moodyReport, buffers.triangleVertices, buffers.tableThicknessVertices)
 
   const areEqual = (x, y, z, w, v) => x === y && y === z && z === w && w === v
   console.assert(areEqual(buffers.positions.length / 3, buffers.normals.length / 3, buffers.textureCoordinates.length / 2, buffers.types.length, lineColorBuffer.colors.length / 4),
@@ -939,27 +940,76 @@ function getBuffers(gl, moodyReport, zMultiplier) {
     textureBuffer: buffers.textureBuffer,
     typeBuffer: buffers.typeBuffer,
     lineColors: lineColorBuffer.colorBuffer,
+    tableThicknessVertices: buffers.tableThicknessVertices
   }
 }
 
 function getNonColorBuffers(gl, moodyReport, zMultiplier) {
-  const vertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2])).flat(1)
-  const triangulation = bowyerWatson(vertices)
+  const tableSurfaceVertices = moodyReport.vertices(zMultiplier).map(vertex => new Vertex(vertex[0], vertex[1], vertex[2]))
+  const triangulation = bowyerWatson(tableSurfaceVertices.flat(1))
   const triangulatedVertices = triangulation.map(triangle => [
-    triangle.v0.x, triangle.v0.y, triangle.v0.z,
-    triangle.v1.x, triangle.v1.y, triangle.v1.z,
-    triangle.v2.x, triangle.v2.y, triangle.v2.z]).flat(1)
+    [triangle.v0.x, triangle.v0.y, triangle.v0.z],
+    [triangle.v1.x, triangle.v1.y, triangle.v1.z],
+    [triangle.v2.x, triangle.v2.y, triangle.v2.z]]).flat(1)
 
-  const axisSize = 20
-  // FIXME: We want the line to always be on top of the surface but it can dip underneath it at extreme points. Adding 0.1 to z-coordinate is not good enough.
-  // We need to calculate the slope from point x -> y and use it to find amount to add so line is always on top or have the lines use the same slope as the
-  // points.
+  if (!(zMultiplier in boundingBoxCache)) {
+    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
+  }
+  const topEdgeVertices = tableSurfaceVertices.filter(v => v.y === boundingBoxCache[zMultiplier].maxY).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v0.x - v1.x)
+  const rightEdgeVertices = tableSurfaceVertices.filter(v => v.x === boundingBoxCache[zMultiplier].maxX).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)
+  const bottomEdgeVertices = tableSurfaceVertices.filter(v => v.y === boundingBoxCache[zMultiplier].minY).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v0.x - v1.x)
+  const leftEdgeVertices = tableSurfaceVertices.filter(v => v.x === boundingBoxCache[zMultiplier].minX).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)
+
+  const minX = Math.min(...moodyReport.vertices(zMultiplier).map(vertex => vertex[0]))
+  const maxX = Math.max(...moodyReport.vertices(zMultiplier).map(vertex => vertex[0]))
+  const minY = Math.min(...moodyReport.vertices(zMultiplier).map(vertex => vertex[1]))
+  const maxY = Math.max(...moodyReport.vertices(zMultiplier).map(vertex => vertex[1]))
+
+  // We should be able to get rid of this once we fix the Moody lines being cut off.
+  bottomEdgeVertices.unshift(new Vertex(minX, minY, bottomEdgeVertices[0].z))
+  leftEdgeVertices.unshift(new Vertex(minX, minY, leftEdgeVertices[0].z))
+
+  const surfacePlateWidth = boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX
+  const surfacePlateHeight = boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY
+  const surfacePlateThickness = surfacePlateWidth / 14
+  const surfacePlateBottomDepth = boundingBoxCache[zMultiplier].minZ - surfacePlateThickness
+
+  const tableCorners = {
+    "northWest": moodyReport.topStartingDiagonalTable.vertices(zMultiplier)[0].flat(1),
+    "northEast": moodyReport.bottomStartingDiagonalTable.vertices(zMultiplier)[0].flat(1),
+    "southEast": moodyReport.topStartingDiagonalTable.vertices(zMultiplier)[moodyReport.topStartingDiagonalTable.vertices().length - 1].flat(1),
+    "southWest": moodyReport.bottomStartingDiagonalTable.vertices(zMultiplier)[moodyReport.bottomStartingDiagonalTable.vertices().length - 1].flat(1)
+  }
+
+  const tableThicknessVertices = []
+  const sides = [topEdgeVertices, rightEdgeVertices, leftEdgeVertices, bottomEdgeVertices]
+
+  sides.forEach(side => {
+    for (let i = 0; i < side.length - 1; i++) {
+      let v = side[i]
+      tableThicknessVertices.push([v.x, v.y, v.z],
+        [v.x, v.y, surfacePlateBottomDepth],
+        [side[i + 1].x, side[i + 1].y, side[i + 1].z],
+        [side[i + 1].x, side[i + 1].y, side[i + 1].z],
+        [side[i + 1].x, side[i + 1].y, surfacePlateBottomDepth],
+        [v.x, v.y, surfacePlateBottomDepth])
+    }
+  })
+  const tableBottomVertices = [
+    [maxX, minY, surfacePlateBottomDepth],
+    [minX, minY, surfacePlateBottomDepth],
+    [minX, maxY, surfacePlateBottomDepth],
+    [maxX, minY, surfacePlateBottomDepth],
+    [maxX, maxY, surfacePlateBottomDepth],
+    [minX, maxY, surfacePlateBottomDepth]
+  ]
+  tableBottomVertices.forEach(v => tableThicknessVertices.unshift(v))
+
+  // FIXME: We want the Union jack lines to always be on top of the surface but it can dip underneath it at extreme points. Why though?
   const positions = new Float32Array(
     moodyReport.vertices(zMultiplier).map(v => [v[0], v[1], v[2] + 0.1]).flat(1) // "Union jack" colored lines.
-      .concat(triangulatedVertices)
-      .concat(0, 0, 0, axisSize, 0, 0,
-        0, 0, 0, 0, axisSize, 0,
-        0, 0, 0, 0, 0, axisSize)
+      .concat(triangulatedVertices.flat(1))                                      // Table surface.
+      .concat(tableThicknessVertices.flat(1))                                    // Sides/bottom of table.
   )
 
   const positionBuffer = gl.createBuffer()
@@ -969,27 +1019,44 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   // Calculate and create normal buffer.
   const lineNormals = moodyReport.vertices(zMultiplier).map(() => [0.0, 0.0, 0.0]).flat(1)
   // Each triangle has 3 vertices with the same surface normal.
-  const triangleNormals = triangulation.map(triangle => {
-    const length = Math.sqrt(triangle.surfaceNormal().x * triangle.surfaceNormal().x +
-      triangle.surfaceNormal().y * triangle.surfaceNormal().y +
-      triangle.surfaceNormal().z * triangle.surfaceNormal().z)
+  const tableSurfaceNormals = triangulation.map(triangle => {
+    const length = triangle.surfaceNormal().magnitude
     return [
       triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
       triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length,
       triangle.surfaceNormal().x / length, triangle.surfaceNormal().y / length, triangle.surfaceNormal().z / length
     ]
   }).flat(1)
-  const normals = new Float32Array(lineNormals.concat(triangleNormals).concat(new Array(18).fill(0)))
+  const tableThicknessNormals = []
+  for (let i = 0; i < tableThicknessVertices.flat(1).length; i += 9) {
+    const v0Arr = tableThicknessVertices.flat(1).slice(i, i + 3)
+    const v1Arr = tableThicknessVertices.flat(1).slice(i + 3, i + 6)
+    const v2Arr = tableThicknessVertices.flat(1).slice(i + 6, i + 9)
+    const v0 = new Vertex(v0Arr[0], v0Arr[1], v0Arr[2])
+    const v1 = new Vertex(v1Arr[0], v1Arr[1], v1Arr[2])
+    const v2 = new Vertex(v2Arr[0], v2Arr[1], v2Arr[2])
+    // FIXME: Instead of this nonsense we could change the order that we add the vertices for the table sides.
+    let tri
+    if (i / 9 % 2 === 0) {
+      tri = new Triangle(v1, v0, v2)
+    } else {
+      tri = new Triangle(v0, v1, v2)
+    }
+    const length = tri.surfaceNormal().magnitude
+    tableThicknessNormals.push(
+      tri.surfaceNormal().x / length, tri.surfaceNormal().y / length, tri.surfaceNormal().z / length,
+      tri.surfaceNormal().x / length, tri.surfaceNormal().y / length, tri.surfaceNormal().z / length,
+      tri.surfaceNormal().x / length, tri.surfaceNormal().y / length, tri.surfaceNormal().z / length,
+    )
+  }
+
+  const normals = new Float32Array(lineNormals.concat(tableSurfaceNormals).concat(tableThicknessNormals))
   const normalBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW)
 
   // Calculate and create texture buffer.
   const lineTextureCoords = moodyReport.vertices(zMultiplier).map(() => [0.0, 1.0]).flat(1)
-
-  if (!(zMultiplier in boundingBoxCache)) {
-    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
-  }
   const tableSurfaceRatio = (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX)
   //  Map [minX, maxX] => [0, 1] and [minY, maxY] => [0, 1]
   // (val - A) * (b - a) / (B - A) + a
@@ -1005,15 +1072,15 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
     ((triangle.v2.y - boundingBoxCache[zMultiplier].minY) * numRepeatsY) / (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY),
   ]).flat(1)
 
-  const textureCoordinates = new Float32Array(lineTextureCoords.concat(triangleTextureCoords).concat(0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0))
+  const textureCoordinates = new Float32Array(lineTextureCoords.concat(triangleTextureCoords).concat(new Array((tableThicknessVertices.flat(1).length / 3) * 2).fill(0.0)))
   const textureBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer)
   gl.bufferData(gl.ARRAY_BUFFER, textureCoordinates, gl.STATIC_DRAW)
 
   const types = new Float32Array(
-    moodyReport.vertices(zMultiplier).map(() => [0.0]).flat(1) // "Union jack" colored lines have type "0.0"
-      .concat(triangulation.map(() => [1.0, 1.0, 1.0]).flat(1))  // Table vertices have type "1.0"
-      .concat(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))                    // Axis vertices have type "0.0"
+    moodyReport.vertices(zMultiplier).map(() => [0.0]).flat(1)                       // "Union jack" colored lines have type "0.0"
+      .concat(triangulation.map(() => [1.0, 1.0, 1.0]).flat(1))                      // Table surface vertices have type "1.0"
+      .concat(new Array(tableThicknessVertices.flat(1).length / 3).fill(1.0)))       // FIXME: Decide if we want type 0.0 (no lighting and transparent) or 1.0 (lighting but opaque) - Table sides/bottom have type "1.0"
 
   const typeBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, typeBuffer)
@@ -1022,11 +1089,14 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   return {
     positionBuffer: positionBuffer, positions: positions, normalBuffer: normalBuffer, normals: normals,
     textureBuffer: textureBuffer, textureCoordinates: textureCoordinates, typeBuffer: typeBuffer, types: types,
-    triangleVertices: triangulatedVertices
+    triangleVertices: triangulatedVertices.flat(1),
+    tableThicknessVertices: tableThicknessVertices
   }
 }
 
-function getColorBuffer(gl, moodyReport, triangleVertices) {
+function getColorBuffer(gl, moodyReport, triangleVertices, tableThicknessVertices) {
+  console.log(tableThicknessVertices)
+
   const triangleZValues = triangleVertices.filter((v, i) => (i + 1) % 3 == 0)
   const minZ = Math.min(...triangleZValues)
   const maxZ = Math.max(...triangleZValues)
@@ -1043,9 +1113,7 @@ function getColorBuffer(gl, moodyReport, triangleVertices) {
     .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.749019607843137, 0.8470588235294118, 1.0]).flat(1))
     .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
     .concat(colorMappedZValues.flat(1)) // Add color mapped colors for the triangles z-value.
-    .concat(1, 1, 1, 1, 1, 0, 0, 1,
-      1, 1, 1, 1, 0, 1, 0, 1,
-      1, 1, 1, 1, 0, 0, 1, 1) // Add colors for axes lines.
+    .concat(tableThicknessVertices.slice(0, tableThicknessVertices.flat(1).length / 3).map(value => [0.5, 0.5, 0.5, 0.75]).flat(1)) // Add colors (gray) for table sides/bottom.
 
   const colorBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)

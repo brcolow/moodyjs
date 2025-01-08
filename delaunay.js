@@ -1,6 +1,6 @@
 import { Vector3 } from "./math.js"
 
-// Delaunay Triangulation from: https://github.com/msavela/delaunay/
+// Delaunay Triangulation originally from: https://github.com/msavela/delaunay/
 class Vertex {
   constructor(x, y, z) {
     this.x = x
@@ -38,37 +38,33 @@ class Triangle {
   calcCircumcircle() {
     // Reference: http://www.faqs.org/faqs/graphics/algorithms-faq/
     // Subject 1.04: How do I generate a circle through three points?
-    const A = this.v1.x - this.v0.x
-    const B = this.v1.y - this.v0.y
-    const C = this.v2.x - this.v0.x
-    const D = this.v2.y - this.v0.y
+    const [v0, v1, v2] = [this.v0, this.v1, this.v2]
+    const A = v1.x - v0.x
+    const B = v1.y - v0.y
+    const C = v2.x - v0.x
+    const D = v2.y - v0.y
 
-    const E = A * (this.v0.x + this.v1.x) + B * (this.v0.y + this.v1.y)
-    const F = C * (this.v0.x + this.v2.x) + D * (this.v0.y + this.v2.y)
+    const E = A * (v0.x + v1.x) + B * (v0.y + v1.y)
+    const F = C * (v0.x + v2.x) + D * (v0.y + v2.y)
 
-    const G = 2.0 * (A * (this.v2.y - this.v1.y) - B * (this.v2.x - this.v1.x))
+    const G = 2.0 * (A * (v2.y - v1.y) - B * (v2.x - v1.x))
 
-    if (G == 0) {
-      // Collinear points (no circle through them exists) so: get extremes and use midpoint as center.
-      const minx = Math.min(this.v0.x, this.v1.x, this.v2.x)
-      const miny = Math.min(this.v0.y, this.v1.y, this.v2.y)
-      const maxx = Math.max(this.v0.x, this.v1.x, this.v2.x)
-      const maxy = Math.max(this.v0.y, this.v1.y, this.v2.y)
+    if (G === 0) {
+      // Collinear points: Use the midpoint of extremes as center.
+      const [minx, maxx] = [Math.min(v0.x, v1.x, v2.x), Math.max(v0.x, v1.x, v2.x)]
+      const [miny, maxy] = [Math.min(v0.y, v1.y, v2.y), Math.max(v0.y, v1.y, v2.y)]
+      const centerX = (minx + maxx) / 2
+      const centerY = (miny + maxy) / 2
 
-      this.center = new Vertex((minx + maxx) / 2, (miny + maxy) / 2, 0)
-
-      const dx = this.center.x - minx
-      const dy = this.center.y - miny
-      this.radius = Math.sqrt(dx * dx + dy * dy);
+      this.center = new Vertex(centerX, centerY, 0)
+      this.radius = Math.sqrt((centerX - minx) ** 2 + (centerY - miny) ** 2)
     } else {
+      // Calculate the circumcircle.
       const cx = (D * E - B * F) / G
       const cy = (A * F - C * E) / G
 
       this.center = new Vertex(cx, cy, 0)
-
-      const dx = this.center.x - this.v0.x
-      const dy = this.center.y - this.v0.y
-      this.radius = Math.sqrt(dx * dx + dy * dy);
+      this.radius = Math.hypot(cx - v0.x, cy - v0.y)
     }
   }
 
@@ -79,26 +75,23 @@ class Triangle {
   }
 
   surfaceNormal() {
-    let normalVector = Vector3.create()
+    const normalVector = Vector3.create()
     return Vector3.cross(normalVector, this.edgeVec1, this.edgeVec0)
   }
 }
 
 function getSuperTriangle(vertices) {
-  // Initialize with first vertex.
-  let minX = vertices[0].x
-  let minY = vertices[0].y
-  let maxX = vertices[0].x
-  let maxY = vertices[0].y
-
-  // Loop through remaining vertices to find min/max.
-  for (let i = 1; i < vertices.length; i++) {
-    const vertex = vertices[i]
-    minX = Math.min(minX, vertex.x)
-    minY = Math.min(minY, vertex.y)
-    maxX = Math.max(maxX, vertex.x)
-    maxY = Math.max(maxY, vertex.y)
-  }
+  const { minX, minY, maxX, maxY } = vertices.reduce((acc, { x, y }) => ({
+    minX: Math.min(acc.minX, x),
+    minY: Math.min(acc.minY, y),
+    maxX: Math.max(acc.maxX, x),
+    maxY: Math.max(acc.maxY, y),
+  }), {
+    minX: vertices[0].x,
+    minY: vertices[0].y,
+    maxX: vertices[0].x,
+    maxY: vertices[0].y,
+  })
 
   const dx = (maxX - minX) * 10
   const dy = (maxY - minY) * 10
@@ -111,48 +104,34 @@ function getSuperTriangle(vertices) {
 }
 
 function addVertex(vertex, triangles) {
-  let edges = []
-
-  // Remove triangles with circumcircles containing the vertex.
+  // Collect edges from triangles whose circumcircles contain the vertex.
+  const edges = []
   triangles = triangles.filter(triangle => {
     if (triangle.inCircumcircle(vertex)) {
-      edges.push(new Edge(triangle.v0, triangle.v1))
-      edges.push(new Edge(triangle.v1, triangle.v2))
-      edges.push(new Edge(triangle.v2, triangle.v0))
+      edges.push(
+        new Edge(triangle.v0, triangle.v1),
+        new Edge(triangle.v1, triangle.v2),
+        new Edge(triangle.v2, triangle.v0)
+      )
       return false
     }
     return true
   })
 
-  // Get unique edges.
-  edges = uniqueEdges(edges)
+  // Create unique edges.
+  const uniqueEdgesList = uniqueEdges(edges)
 
-  // Create new triangles from the unique edges and new vertex.
-  edges.forEach(edge => {
-    triangles.push(new Triangle(edge.v0, edge.v1, vertex))
-  })
+  // Add new triangles formed by the unique edges and the vertex.
+  const newTriangles = uniqueEdgesList.map(edge => new Triangle(edge.v0, edge.v1, vertex))
 
-  return triangles
+  // Return the updated triangles.
+  return [...triangles, ...newTriangles]
 }
 
 function uniqueEdges(edges) {
-  const uniqueEdges = []
-  for (let i = 0; i < edges.length; ++i) {
-    let isUnique = true
-
-    // See if edge is unique.
-    for (let j = 0; j < edges.length; ++j) {
-      if (i != j && edges[i].equals(edges[j])) {
-        isUnique = false
-        break
-      }
-    }
-
-    // Edge is unique, add to unique edges array.
-    isUnique && uniqueEdges.push(edges[i])
-  }
-
-  return uniqueEdges
+  return edges.filter((edge, i) =>
+    !edges.some((otherEdge, j) => i !== j && edge.equals(otherEdge))
+  )
 }
 
 function bowyerWatson(vertices) {
@@ -176,4 +155,4 @@ function bowyerWatson(vertices) {
   return triangles
 }
 
-export { bowyerWatson, Vertex }
+export { bowyerWatson, Triangle, Vertex }

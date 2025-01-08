@@ -187,7 +187,7 @@ class DiagonalTable extends Table {
   vertices(zMultiplier = 1) {
     if (this.lineSegment.start == Direction.Northwest) {
       // Top-Starting Diagonal
-      // y = -(table_width/table_height) * x  + table_height
+      // y = -(table_width/table_height) * x + table_height
       // sin(theta) = y / reflector_foot_spacing
       // tan(theta) = y / x
       return this.displacementsFromBaseLineLinear.map((z, i) => {
@@ -199,7 +199,7 @@ class DiagonalTable extends Table {
       // Bottom starting diagonal
       // y = (table_width/table_height) * x
       return this.displacementsFromBaseLineLinear.map((z, i) => {
-        const x = this.surfacePlateWidthInches - this.xInset - (i *  Math.sin(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
+        const x = this.surfacePlateWidthInches - this.xInset - (i * Math.sin(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
         const y = this.surfacePlateHeightInches - this.yInset - (i * Math.cos(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
         return [x, y, z * zMultiplier]
       })
@@ -466,18 +466,18 @@ class MoodyReport {
 
   get tables() {
     return [this.topStartingDiagonalTable, this.bottomStartingDiagonalTable, this.northPerimeterTable,
-      this.eastPerimeterTable, this.southPerimeterTable, this.westPerimeterTable, this.horizontalCenterTable, this.verticalCenterTable]
+    this.eastPerimeterTable, this.southPerimeterTable, this.westPerimeterTable, this.horizontalCenterTable, this.verticalCenterTable]
   }
 
   printDebug() {
-    return this.topStartingDiagonalTable.printDebug() + 
-     this.bottomStartingDiagonalTable.printDebug() + 
-     this.northPerimeterTable.printDebug() + 
-     this.southPerimeterTable.printDebug() + 
-     this.eastPerimeterTable.printDebug() + 
-     this.westPerimeterTable.printDebug() + 
-     this.horizontalCenterTable.printDebug() + 
-     this.verticalCenterTable.printDebug()
+    return this.topStartingDiagonalTable.printDebug() +
+      this.bottomStartingDiagonalTable.printDebug() +
+      this.northPerimeterTable.printDebug() +
+      this.southPerimeterTable.printDebug() +
+      this.eastPerimeterTable.printDebug() +
+      this.westPerimeterTable.printDebug() +
+      this.horizontalCenterTable.printDebug() +
+      this.verticalCenterTable.printDebug()
   }
 }
 
