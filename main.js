@@ -191,6 +191,19 @@ function createTableGraphic(surfacePlate) {
   document.getElementById('westPerimeterLine').setAttribute("d", `M ${xInset} ${surfacePlatePercentHeight - yInset} L ${xInset} ${yInset}`)
   document.getElementById('horizontalCenterLine').setAttribute("d", `M ${surfacePlatePercentWidth - xInset} ${surfacePlatePercentHeight / 2} L ${xInset} ${surfacePlatePercentHeight / 2}`)
   document.getElementById('verticalCenterLine').setAttribute("d", `M ${surfacePlatePercentWidth / 2} ${yInset} L ${surfacePlatePercentWidth / 2} ${surfacePlatePercentHeight - yInset}`)
+
+  // Make the table lines clickable.
+  document.getElementById('topStartingDiagonalLineGroup').addEventListener('click', event => {
+    const selectedLine = (() => {
+      switch (event.originalTarget.tagName) {
+        case 'textPath':
+          return event.originalTarget.parentElement.parentElement.id.slice(0, -5)
+        case 'path':
+          return event.originalTarget.id
+      }
+    })();
+    console.log(selectedLine)
+  })
 }
 
 // Recalculates the values by creating a new MoodyReport and updates the table cell values accordingly.
