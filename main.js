@@ -913,23 +913,23 @@ void main() {
     }
 
     vec3 colorLinear = ambientColor +
-                        diffuseColor * lambertian * lightColor * lightPower / distance +
-                        specColor * specular * lightColor * lightPower / distance;
+                        (diffuseColor * lambertian * lightColor * lightPower / distance) +
+                        (specColor * specular * lightColor * lightPower / distance);
     // apply gamma correction (assume ambientColor, diffuseColor and specColor
     // have been linearized, i.e. have no gamma correction in them)
     vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
-    if (!showHeatmap) {
+    if (showHeatmap) {
+      if (lightingOn) {
+        outputColor = vec4(color.rgb * colorGammaCorrected, color.a);
+      } else {
+        outputColor = color;
+      }
+    } else {
+      // No heatmap - use the granite texture.
       if (lightingOn) {
         outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
       } else {
         outputColor = texture(sampler, textureCoord);
-      }
-    } else {
-      if (lightingOn) {
-        // No heatmap - show the table with a granite texture.
-        outputColor = vec4(color.rgb * colorGammaCorrected, 1.0);
-      } else {
-        outputColor = color;
       }
     }
   }
@@ -1093,7 +1093,7 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   const types = new Float32Array(
     moodyReport.vertices(zMultiplier).map(() => [0.0]).flat(1)                       // "Union jack" colored lines have type "0.0"
       .concat(triangulation.map(() => [1.0, 1.0, 1.0]).flat(1))                      // Table surface vertices have type "1.0"
-      .concat(new Array(tableThicknessVertices.flat(1).length / 3).fill(1.0)))       // FIXME: Decide if we want type 0.0 (no lighting and transparent) or 1.0 (lighting but opaque) - Table sides/bottom have type "1.0"
+      .concat(new Array(tableThicknessVertices.flat(1).length / 3).fill(1.0)))       // Table sides/bottom have type "1.0"
 
   const typeBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, typeBuffer)
