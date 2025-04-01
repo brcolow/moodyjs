@@ -119,7 +119,7 @@ function addVertex(vertex, triangles) {
   })
 
   // Create unique edges.
-  const uniqueEdgesList = uniqueEdges(edges)
+  const uniqueEdgesList = strictlyUniqueEdges(edges)
 
   // Add new triangles formed by the unique edges and the vertex.
   const newTriangles = uniqueEdgesList.map(edge => new Triangle(edge.v0, edge.v1, vertex))
@@ -128,10 +128,34 @@ function addVertex(vertex, triangles) {
   return [...triangles, ...newTriangles]
 }
 
-function uniqueEdges(edges) {
-  return edges.filter((edge, i) =>
-    !edges.some((otherEdge, j) => i !== j && edge.equals(otherEdge))
-  )
+/**
+ * Returns an array of edges that are strictly unique within the input array.
+ * 
+ * An edge is considered unique if there are no other edges in the array 
+ * that are equal to it (based on the `Edge.prototype.equals()` method).
+ * 
+ * This function removes all edges that have any duplicates — even if they 
+ * are structurally equal but not the same instance, or appear only twice.
+ * 
+ * Example:
+ *   - Input: [e1, e2, e3], where e1.equals(e2) === true
+ *   - Output: [e3] — because e1 and e2 cancel each other out
+ * 
+ * @param {Edge[]} edges - Array of Edge instances.
+ * @returns {Edge[]} Array of edges that appear only once (by equality).
+ */
+function strictlyUniqueEdges(edges) {
+  const result = []
+
+  for (let i = 0; i < edges.length; i++) {
+    const edge = edges[i]
+    const isUnique = !edges.some((other, j) => j !== i && edge.equals(other))
+    if (isUnique) {
+      result.push(edge)
+    }
+  }
+
+  return result
 }
 
 function bowyerWatson(vertices) {
