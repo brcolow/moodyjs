@@ -80,6 +80,23 @@ class Triangle {
   }
 }
 
+/**
+ * Computes a large "super triangle" that fully encloses all given vertices.
+ * 
+ * The super triangle is constructed to be significantly larger than the bounding box
+ * of the input vertices, ensuring it fully contains all points.
+ * 
+ * The super triangle vertices are placed as follows:
+ * - One vertex far to the left and below.
+ * - One vertex far to the left and above.
+ * - One vertex far to the right and above.
+ * 
+ * This triangle is later used as the starting point for Bowyer-Watson triangulation
+ * and will be discarded after all vertices are inserted.
+ * 
+ * @param {Vertex[]} vertices - Array of input vertices to be triangulated.
+ * @returns {Triangle} A large enclosing Triangle instance.
+ */
 function getSuperTriangle(vertices) {
   const { minX, minY, maxX, maxY } = vertices.reduce((acc, { x, y }) => ({
     minX: Math.min(acc.minX, x),
@@ -129,35 +146,51 @@ function addVertex(vertex, triangles) {
 }
 
 /**
- * Returns an array of edges that are strictly unique within the input array.
+ * Returns an array of edges that are strictly unique.
  * 
- * An edge is considered unique if there are no other edges in the array 
- * that are equal to it (based on the `Edge.prototype.equals()` method).
- * 
- * This function removes all edges that have any duplicates — even if they 
- * are structurally equal but not the same instance, or appear only twice.
- * 
- * Example:
- *   - Input: [e1, e2, e3], where e1.equals(e2) === true
- *   - Output: [e3] — because e1 and e2 cancel each other out
+ * This faster version uses a Map to count edges based on a sorted key,
+ * avoiding O(n^2) comparisons.
  * 
  * @param {Edge[]} edges - Array of Edge instances.
- * @returns {Edge[]} Array of edges that appear only once (by equality).
+ * @returns {Edge[]} Array of edges that appear exactly once.
  */
 function strictlyUniqueEdges(edges) {
-  const result = []
+  const edgeCount = new Map()
 
-  for (let i = 0; i < edges.length; i++) {
-    const edge = edges[i]
-    const isUnique = !edges.some((other, j) => j !== i && edge.equals(other))
-    if (isUnique) {
-      result.push(edge)
+  edges.forEach(edge => {
+    const key = edgeKey(edge)
+    const entry = edgeCount.get(key)
+    if (entry) {
+      entry.count += 1
+    } else {
+      edgeCount.set(key, { edge: edge, count: 1 })
+    }
+  })
+
+  // Collect only the edges that occurred exactly once
+  const uniqueEdges = []
+  for (const { edge, count } of edgeCount.values()) {
+    if (count === 1) {
+      uniqueEdges.push(edge)
     }
   }
 
-  return result
+  return uniqueEdges
 }
 
+/**
+ * Performs Delaunay triangulation on a set of vertices using the Bowyer-Watson algorithm.
+ * 
+ * The algorithm:
+ * - Starts with a large 'super triangle' encompassing all points.
+ * - Inserts vertices one by one.
+ * - Removes triangles whose circumcircles contain the inserted vertex.
+ * - Re-triangulates the resulting hole with new triangles.
+ * - After all vertices are added, removes any triangles connected to the super triangle.
+ * 
+ * @param {Vertex[]} vertices - Array of vertices to triangulate.
+ * @returns {Triangle[]} Array of resulting Delaunay triangles.
+ */
 function bowyerWatson(vertices) {
   // Create bounding 'super' triangle.
   const st = getSuperTriangle(vertices)
@@ -179,4 +212,64 @@ function bowyerWatson(vertices) {
   return triangles
 }
 
-export { bowyerWatson, Triangle, Vertex }
+/**
+ * Computes the Voronoi diagram from a Delaunay triangulation.
+ * 
+ * Each Voronoi vertex corresponds to the circumcenter of a Delaunay triangle.
+ * Each Voronoi edge connects circumcenters of adjacent triangles.
+ * 
+ * @param {Triangle[]} triangles - Array of Delaunay triangles.
+ * @returns {Object} An object containing:
+ *    - vertices: Vertex[] (the Voronoi vertices),
+ *    - edges: Array<[Vertex, Vertex]> (the Voronoi edges as pairs of circumcenters).
+ */
+function voronoi(triangles) {
+  const voronoiVertices = triangles.map(tri => tri.center)
+  const voronoiEdges = []
+
+  // Build adjacency map: for each edge, map to the triangles that share it
+  const edgeToTriangles = new Map()
+
+  triangles.forEach(triangle => {
+    const edges = [
+      new Edge(triangle.v0, triangle.v1),
+      new Edge(triangle.v1, triangle.v2),
+      new Edge(triangle.v2, triangle.v0)
+    ]
+
+    edges.forEach(edge => {
+      let key = edgeKey(edge)
+      if (!edgeToTriangles.has(key)) {
+        edgeToTriangles.set(key, [])
+      }
+      edgeToTriangles.get(key).push(triangle)
+    })
+  })
+
+  // For each edge shared by exactly two triangles, create a Voronoi edge
+  for (const [key, tris] of edgeToTriangles.entries()) {
+    if (tris.length === 2) {
+      const [t1, t2] = tris
+      voronoiEdges.push([t1.center, t2.center])
+    }
+  }
+
+  return { vertices: voronoiVertices, edges: voronoiEdges }
+}
+
+/**
+ * Returns a consistent key for an Edge regardless of vertex order.
+ * 
+ * @param {Edge} edge 
+ * @returns {string} A string key for the edge.
+ */
+function edgeKey(edge) {
+  const [a, b] = [edge.v0, edge.v1]
+  if (a.x < b.x || (a.x === b.x && a.y < b.y)) {
+    return `${a.x},${a.y}_${b.x},${b.y}`
+  } else {
+    return `${b.x},${b.y}_${a.x},${a.y}`
+  }
+}
+
+export { bowyerWatson, Triangle, Vertex, voronoi }
