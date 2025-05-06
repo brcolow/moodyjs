@@ -107,3 +107,4 @@ This can be done by running `npm run serve` in the root project directory.
 ## Thanks To
 
 [Bruce Allen](https://github.com/ballen4705) - Published a very useful paper that corrects some mistakes from Moody's original magazine article and provides some useful citations.
+[ballen4705/Moody-Method](https://github.com/ballen4705/Moody-Method)
