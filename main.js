@@ -118,7 +118,7 @@ function createTables() {
   lines.forEach(line => {
     const linePropertyName = line[0].toUpperCase() + line.slice(1)
     document.getElementById(line + "Table").createCaption().textContent =
-      surfacePlate[linePropertyName].name + " (" + surfacePlate[linePropertyName].displayName() + ")"
+      SurfacePlate[linePropertyName].name + " (" + SurfacePlate[linePropertyName].displayName() + ")"
     // Delete all non-header rows from table.
     Array.from(document.getElementById(line + "Table").getElementsByTagName("tbody")[0].getElementsByTagName("tr")).forEach(tr => tr.remove())
     // Delete all previously constructed SVG table graphics (for each line).
@@ -202,7 +202,6 @@ function createTableGraphic(surfacePlate) {
           return event.originalTarget.id
       }
     })();
-    console.log(selectedLine)
   })
 }
 

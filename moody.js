@@ -131,14 +131,15 @@ class Table {
     return this.sumOfDisplacements.map((_, i, arr) => roundTo(difference + ((arr.length - i - 1) * correctionFactor), 2))
   }
 
-  // Returns the value of the "middle" station. If the there is no middle (number of readings is odd) then return average of
+  // Returns the value of the "middle" station.
+  // If the there is no middle (number of readings is even) then return average of
   // the two middle-most entries.
   midStationValue(arr) {
-    if (arr.length % 2 === 0) {
-      return arr[((this.numStations - 1) / 2) - 1]
-    } else {
-      return 0.5 * (arr[(this.numStations - 1) / 2] + arr[(this.numStations + 1) / 2])
-    }
+    const n = arr.length
+    if (n === 0) return null
+
+    const mid = Math.floor(n / 2)
+    return n % 2 === 1 ? arr[mid] : 0.5 * (arr[mid - 1] + arr[mid])
   }
 
   // Angular displacement from datum plane in arc-seconds (Column #6).
@@ -276,6 +277,8 @@ class CenterTable extends Table {
     // For the vertical center-line just copy the values from Column #6.
     if (this.lineSegment.start == Direction.East) {
       // Horizontal Center Line
+      console.log("Calling midStationValue on: " + this.displacementsFromDatumPlane)
+      console.log(this.midStationValue(this.displacementsFromDatumPlane))
       const toAdd = -this.midStationValue(this.displacementsFromDatumPlane)
       return this.displacementsFromDatumPlane.map(x => roundTo(x + toAdd, 2))
     } else if (this.lineSegment.start == Direction.North) {
@@ -336,16 +339,16 @@ class CenterTable extends Table {
 
 class SurfacePlate {
   // The two diagonals (naming is done relative to left-to-right direction).
-  TopStartingDiagonal = new LineSegment(Direction.Northwest, Direction.Southeast, "Top-Starting Diagonal")
-  BottomStartingDiagonal = new LineSegment(Direction.Northeast, Direction.Southwest, "Bottom-Starting Diagonal")
+  static TopStartingDiagonal = new LineSegment(Direction.Northwest, Direction.Southeast, "Top-Starting Diagonal")
+  static BottomStartingDiagonal = new LineSegment(Direction.Northeast, Direction.Southwest, "Bottom-Starting Diagonal")
   // The four perimeter lines.
-  NorthPerimeter = new LineSegment(Direction.Northeast, Direction.Northwest, "North Perimeter")
-  EastPerimeter = new LineSegment(Direction.Northeast, Direction.Southeast, "East Perimeter")
-  SouthPerimeter = new LineSegment(Direction.Southeast, Direction.Southwest, "South Perimeter")
-  WestPerimeter = new LineSegment(Direction.Northwest, Direction.Southwest, "West Perimeter")
+  static NorthPerimeter = new LineSegment(Direction.Northeast, Direction.Northwest, "North Perimeter")
+  static EastPerimeter = new LineSegment(Direction.Northeast, Direction.Southeast, "East Perimeter")
+  static SouthPerimeter = new LineSegment(Direction.Southeast, Direction.Southwest, "South Perimeter")
+  static WestPerimeter = new LineSegment(Direction.Northwest, Direction.Southwest, "West Perimeter")
   // The two center lines.
-  HorizontalCenter = new LineSegment(Direction.East, Direction.West, "Horizontal Center")
-  VerticalCenter = new LineSegment(Direction.North, Direction.South, "Vertical Center")
+  static HorizontalCenter = new LineSegment(Direction.East, Direction.West, "Horizontal Center")
+  static VerticalCenter = new LineSegment(Direction.North, Direction.South, "Vertical Center")
   surfacePlateHeightInches
   surfacePlateWidthInches
   surfacePlateDiagonalInches
@@ -395,26 +398,26 @@ class MoodyReport {
 
   constructor(surfacePlate, topStartingDiagonalReadings, bottomStartingDiagonalReadings, northPerimeterReadings, eastPerimeterReadings,
     southPerimeterReadings, westPerimeterReadings, horizontalCenterReadings, verticalCenterReadings) {
-    this.topStartingDiagonalTable = new DiagonalTable(surfacePlate.TopStartingDiagonal, topStartingDiagonalReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
-    this.bottomStartingDiagonalTable = new DiagonalTable(surfacePlate.BottomStartingDiagonal, bottomStartingDiagonalReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
-    this.northPerimeterTable = new PerimeterTable(surfacePlate.NorthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations,
+    this.topStartingDiagonalTable = new DiagonalTable(SurfacePlate.TopStartingDiagonal, topStartingDiagonalReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
+    this.bottomStartingDiagonalTable = new DiagonalTable(SurfacePlate.BottomStartingDiagonal, bottomStartingDiagonalReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
+    this.northPerimeterTable = new PerimeterTable(SurfacePlate.NorthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations,
       this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], this.topStartingDiagonalTable.displacementsFromDatumPlane[0],
       northPerimeterReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
-    this.eastPerimeterTable = new PerimeterTable(surfacePlate.EastPerimeter, surfacePlate.suggestedNumberOfVerticalStations,
+    this.eastPerimeterTable = new PerimeterTable(SurfacePlate.EastPerimeter, surfacePlate.suggestedNumberOfVerticalStations,
       this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0], this.topStartingDiagonalTable.displacementsFromDatumPlane[0],
       eastPerimeterReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
-    this.southPerimeterTable = new PerimeterTable(surfacePlate.SouthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations,
+    this.southPerimeterTable = new PerimeterTable(SurfacePlate.SouthPerimeter, surfacePlate.suggestedNumberOfHorizontalStations,
       this.topStartingDiagonalTable.displacementsFromDatumPlane[0], this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0],
       southPerimeterReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
-    this.westPerimeterTable = new PerimeterTable(surfacePlate.WestPerimeter, surfacePlate.suggestedNumberOfVerticalStations,
+    this.westPerimeterTable = new PerimeterTable(SurfacePlate.WestPerimeter, surfacePlate.suggestedNumberOfVerticalStations,
       this.topStartingDiagonalTable.displacementsFromDatumPlane[0], this.bottomStartingDiagonalTable.displacementsFromDatumPlane[0],
       westPerimeterReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
     // TODO: Are we passing the right value for firstValueOfColumn5 for {horizontal/vertical}CenterTable?
-    this.horizontalCenterTable = new CenterTable(surfacePlate.HorizontalCenter, surfacePlate.suggestedNumberOfHorizontalStations,
+    this.horizontalCenterTable = new CenterTable(SurfacePlate.HorizontalCenter, surfacePlate.suggestedNumberOfHorizontalStations,
       this.eastPerimeterTable.midStationValue(this.eastPerimeterTable.displacementsFromDatumPlane),
       this.westPerimeterTable.midStationValue(this.westPerimeterTable.displacementsFromDatumPlane),
       horizontalCenterReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
-    this.verticalCenterTable = new CenterTable(surfacePlate.VerticalCenter, surfacePlate.suggestedNumberOfVerticalStations,
+    this.verticalCenterTable = new CenterTable(SurfacePlate.VerticalCenter, surfacePlate.suggestedNumberOfVerticalStations,
       this.northPerimeterTable.midStationValue(this.northPerimeterTable.displacementsFromDatumPlane),
       this.southPerimeterTable.midStationValue(this.southPerimeterTable.displacementsFromDatumPlane),
       verticalCenterReadings, surfacePlate.reflectorFootSpacingInches, surfacePlate.surfacePlateHeightInches, surfacePlate.surfacePlateWidthInches, surfacePlate.suggestedDiagonalInset)
@@ -492,4 +495,4 @@ function getNumberOfStations(line, surfacePlate) {
   }
 }
 
-export { getNumberOfStations, MoodyReport, SurfacePlate, roundTo, roundToSlow }
+export { getNumberOfStations, MoodyReport, SurfacePlate, roundTo, roundToSlow, Table }
