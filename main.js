@@ -383,13 +383,7 @@ function initialize3DTableGraphic(moodyReport) {
   const gl = canvas.getContext("webgl2")
   // const gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"))
   if (gl === null) {
-    console.log("Unable to initialize WebGL. Your browser or machine may not support it.")
-    const ctx = canvas.getContext("2d")
-
-    ctx.font = "30px Arial"
-    ctx.fillStyle = "red"
-    ctx.textAlign = "center"
-    ctx.fillText("Unable to initialize WebGL!", canvas.width / 2, canvas.height / 2)
+    showWebGLFailedError()
     return
   }
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
@@ -578,6 +572,83 @@ function initialize3DTableGraphic(moodyReport) {
       viewMatrix.translate([-difference[0], -difference[1], 0])
       viewMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
     }
+  }
+
+  function showWebGLFailedError() {
+    console.log("Unable to initialize WebGL. Your browser or machine may not support it.")
+    const ctx = canvas.getContext("2d")
+
+    ctx.font = "30px Arial"
+    ctx.fillStyle = "red"
+    ctx.textAlign = "center"
+    ctx.fillText("Unable to initialize WebGL!", canvas.width / 2, canvas.height / 2)
+
+    const helpText = "Click here for help"
+    const fontSize = 16
+    const textY = canvas.height / 2 + 20
+
+    ctx.font = `${fontSize}px Arial`
+    ctx.fillStyle = "blue"
+    ctx.textAlign = "center"
+    ctx.fillText(helpText, canvas.width / 2, textY)
+
+    const textMetrics = ctx.measureText(helpText)
+    const textWidth = textMetrics.width
+    const textX = canvas.width / 2 - textWidth / 2
+
+    // Draw underline
+    ctx.beginPath()
+    ctx.moveTo(textX, textY + 5)
+    ctx.lineTo(textX + textWidth, textY + 5)
+    ctx.strokeStyle = "blue"
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    // Bounding box for the "link" area
+    const linkArea = {
+      x: textX,
+      y: textY - fontSize,
+      width: textWidth,
+      height: fontSize + 10
+    }
+
+    // Click handler to emulate a link
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+
+      const linkTop = textY - fontSize // rough top of text
+      const linkBottom = textY + 8 // bottom edge of underline
+      const linkLeft = textX
+      const linkRight = textX + textWidth
+
+      if (mouseX >= linkArea.x &&
+        mouseX <= linkArea.x + linkArea.width &&
+        mouseY >= linkArea.y &&
+        mouseY <= linkArea.y + linkArea.height) {
+        window.open(
+          "https://superuser.com/questions/836832/how-do-i-enable-webgl-in-my-browser",
+          "_blank"
+        )
+      }
+
+      // Cursor change on hover
+      canvas.addEventListener("mousemove", (e) => {
+        const rect = canvas.getBoundingClientRect()
+        const mouseX = e.clientX - rect.left
+        const mouseY = e.clientY - rect.top
+
+        if (mouseX >= linkArea.x &&
+          mouseX <= linkArea.x + linkArea.width &&
+          mouseY >= linkArea.y &&
+          mouseY <= linkArea.y + linkArea.height) {
+          canvas.style.cursor = "pointer"
+        } else {
+          canvas.style.cursor = "default"
+        }
+      })
+    })
   }
 
   // Uses the Möller–Trumbore intersection algorithm to see if the given ray (made up of starting Vector3 rayStart
