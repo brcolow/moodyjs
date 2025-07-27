@@ -135,11 +135,14 @@ class Table {
   // If the there is no middle (number of readings is even) then return average of
   // the two middle-most entries.
   midStationValue(arr) {
-    const n = arr.length
-    if (n === 0) return null
-
-    const mid = Math.floor(n / 2)
-    return n % 2 === 1 ? arr[mid] : 0.5 * (arr[mid - 1] + arr[mid])
+    if (arr.length === 0) {
+      return null
+    }
+    if (arr.length % 2 === 1) {
+      return arr[Math.floor(arr.length / 2)]
+    } else {
+      return 0.5 * (arr[Math.floor(arr.length / 2) - 1] + arr[Math.floor(arr.length / 2)])
+    }
   }
 
   // Angular displacement from datum plane in arc-seconds (Column #6).
@@ -175,9 +178,8 @@ class DiagonalTable extends Table {
   get cumulativeCorrectionFactors() {
     // Instead of starting at the middle and then iterating up and down, we proceed unidirectionally from first index.
     const correctionFactor = -this.sumOfDisplacements[this.numStations - 1] / (this.numStations - 1)
-    // We slice the array because we don't want to count the first dummy 0 measurement that gets added.
     return this.sumOfDisplacements.map((_, i) => roundTo((correctionFactor * i +
-      (0.5 * this.sumOfDisplacements[this.numStations - 1] - this.midStationValue(this.sumOfDisplacements.slice(1)))), 2))
+      (0.5 * this.sumOfDisplacements[this.numStations - 1] - this.midStationValue(this.sumOfDisplacements))), 2))
   }
 
   // FIXME: Right now the vertices correspond to the beginning of the reflector - and the z-height it corresponds to is really the z-height at the end of the reflector. So the ends of all of our lines (made from these vertices) are short by one reflector foot spacing.
@@ -222,14 +224,6 @@ class PerimeterTable extends Table {
     this.lastValueOfColumn6 = lastValueOfColumn6
   }
 
-  midStationValue(arr) {
-    if (arr.length % 2 === 1) {
-      return arr[Math.floor(arr.length / 2)]
-    } else {
-      return 0.5 * (arr[((arr.length / 2) - 1) / 2] + arr[arr.length / 2])
-    }
-  }
-
   // (0,0) origin is bottom left corner of surface plate.
   vertices(zMultiplier = 1) {
     if (this.lineSegment.start == Direction.Northeast && this.lineSegment.end == Direction.Northwest) {
@@ -260,14 +254,6 @@ class CenterTable extends Table {
     this.suggestedNumStations = suggestedNumStations
     this.firstValueOfColumn5 = firstValueOfColumn5
     this.lastValueOfColumn6 = lastValueOfColumn6
-  }
-
-  midStationValue(arr) {
-    if (arr.length % 2 === 1) {
-      return arr[Math.floor(arr.length / 2)]
-    } else {
-      return 0.5 * (arr[((arr.length / 2) - 1) / 2] + arr[arr.length / 2])
-    }
   }
 
   get errorShiftedOut() {
