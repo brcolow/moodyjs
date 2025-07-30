@@ -64,7 +64,7 @@ window.addEventListener('DOMContentLoaded', () => {
 function createTables() {
   const surfacePlate = new SurfacePlate(document.getElementById("plateHeight").value,
     document.getElementById("plateWidth").value, document.getElementById("reflectorFootSpacing").value)
-  document.getElementById('plateDiagonal').value = surfacePlate.surfacePlateDiagonalInches
+  document.getElementById('plateDiagonal').value = roundToSlow(surfacePlate.surfacePlateDiagonalInches, 2)
   document.getElementById('diagonalInset').value = surfacePlate.suggestedDiagonalInset
   document.getElementById('numHorizontalStations').value = surfacePlate.suggestedNumberOfHorizontalStations
   document.getElementById('numVerticalStations').value = surfacePlate.suggestedNumberOfVerticalStations

@@ -349,26 +349,77 @@ class SurfacePlate {
     this.surfacePlateWidthInches = surfacePlateWidthInches
     this.reflectorFootSpacingInches = reflectorFootSpacingInches
     this.surfacePlateDiagonalInches = Math.floor(Math.sqrt((surfacePlateHeightInches * surfacePlateHeightInches) + (surfacePlateWidthInches * surfacePlateWidthInches)))
-    // To calculate the number of stations for the diagonal lines we want to find what inset they should use from the top-left and bottom-right corners.
-    // Let a = diagonal line inches and b = reflector spacing inches then:
-    // Want to solve the following for x (the diagonal inset from edge inches)
-    // (a - 2x) mod b = 0   where a > 0, b > 0, and x <= b
-    // Given the above constraints we can solve for x:
-    // x = (a mod b) / 2
-    //  (a) for 48"x72" a = 86.5 and b = 4 then   x = (86.5 mod 4) / 2 = 1.25  which works, since 86.5 - 1.25 * 2 = 84 ... and 84 / 4 = 21 measurements exactly
-    //  (b) for 36"x60" a = 70 and b = 3.5 then   x = (70 mod 3.5) / 2 = 0     which works, since 70 - 0 * 2 = 7       ... and 70 / 3.5 = 20 measurements exactly
-    //  (c) for 48"x48" a = 67.9 and b = 3 then   x = (67.9 mod 3) / 2 = 0.95  which works, since 67.9 - 0.95 * 2 = 66 ... and 66 / 3 = 22 measurements exactly
-    // NOTE - While this works, this gives us the MINIMAL INSET possible, which is not necessarily what we want. It can return 0 inset, for example, as shown above in example (b).
-    // We can check if x is too small (say less than 1), and use the following in that case:
-    // x = ((a mod b) / 2) + b / 2
-    //
-    // Actually, this equation will always give the best answer, to avoid the edge damage region, and x will always be less than b still as: (a mod b) < b
-    // Thus, we use, for all cases:
-    // x = ((a mod b) / 2) + b / 2
-    this.suggestedDiagonalInset = ((this.surfacePlateDiagonalInches % reflectorFootSpacingInches) / 2) + (reflectorFootSpacingInches / 2)
-    this.suggestedNumberOfDiagonalStations = (this.surfacePlateDiagonalInches - (2 * this.suggestedDiagonalInset)) / reflectorFootSpacingInches
-    this.suggestedNumberOfHorizontalStations = (surfacePlateWidthInches - (2 * reflectorFootSpacingInches)) / reflectorFootSpacingInches
-    this.suggestedNumberOfVerticalStations = (surfacePlateHeightInches - (2 * reflectorFootSpacingInches)) / reflectorFootSpacingInches
+
+    Object.assign(this, SurfacePlate.calculateSuggestedStations(
+      surfacePlateWidthInches,
+      surfacePlateHeightInches,
+      this.surfacePlateDiagonalInches,
+      reflectorFootSpacingInches
+    ))
+  }
+
+  /**
+   * Calculates suggested reflector station layout based on the surface plate dimensions and foot spacing.
+   *
+   * Diagonal Station Inset:
+   * ------------------------
+   * To evenly space stations along the diagonal while avoiding edge regions, we solve for `x` such that:
+   *
+   *   (a - 2x) % b === 0
+   *
+   * Where:
+   *   a = diagonal length (inches)
+   *   b = spacing between reflector stations (inches)
+   *   x = inset distance from each end of the diagonal (inches)
+   *
+   * Rearranging, we find:
+   *
+   *   x = ((a % b) / 2) + (b / 2)
+   *
+   * This formula ensures:
+   * - The stations are symmetrically distributed
+   * - They're not placed exactly on the corners (protecting edge zones)
+   * - x is always less than `b`, since (a % b) < b
+   *
+   * Example:
+   *   a = 86.5, b = 4
+   *   x = ((86.5 % 4) / 2) + 2
+   *     = (2.5 / 2) + 2
+   *     = 1.25 + 2 = 3.25 inches inset from both ends
+   *
+   * The result allows placing exactly:
+   *   (a - 2x) / b = (86.5 - 6.5) / 4 = 20 stations
+   *
+   * Horizontal and Vertical Station Calculations:
+   * ---------------------------------------------
+   * These use simpler logic:
+   *   numberOfStations = floor((length - 2 * spacing) / spacing)
+   *
+   * This assumes one spacing offset from each edge, and then fills the rest of the axis evenly.
+   *
+   * @param {number} width - Width of the surface plate in inches
+   * @param {number} height - Height of the surface plate in inches
+   * @param {number} diagonal - Diagonal length across the plate (precomputed)
+   * @param {number} spacing - Desired spacing between reflector stations in inches
+   *
+   * @returns {Object} An object containing:
+   *   @property {number} suggestedDiagonalInset - Inset from diagonal endpoints to first/last stations
+   *   @property {number} suggestedNumberOfDiagonalStations - Count of evenly spaced diagonal stations
+   *   @property {number} suggestedNumberOfHorizontalStations - Count of stations across the width
+   *   @property {number} suggestedNumberOfVerticalStations - Count of stations across the height
+   */
+  static calculateSuggestedStations(width, height, diagonal, spacing) {
+    const suggestedDiagonalInset = ((diagonal % spacing) / 2) + (spacing / 2)
+    const suggestedNumberOfDiagonalStations = Math.max(0, Math.floor((diagonal - (2 * suggestedDiagonalInset)) / spacing))
+    const suggestedNumberOfHorizontalStations = Math.max(0, Math.floor((width - (2 * spacing)) / spacing))
+    const suggestedNumberOfVerticalStations = Math.max(0,  Math.floor((height - (2 * spacing)) / spacing))
+
+    return {
+      suggestedDiagonalInset,
+      suggestedNumberOfDiagonalStations,
+      suggestedNumberOfHorizontalStations,
+      suggestedNumberOfVerticalStations
+    }
   }
 }
 
