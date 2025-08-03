@@ -263,8 +263,6 @@ class CenterTable extends Table {
     // For the vertical center-line just copy the values from Column #6.
     if (this.lineSegment.start == Direction.East) {
       // Horizontal Center Line
-      console.log("Calling midStationValue on: " + this.displacementsFromDatumPlane)
-      console.log(this.midStationValue(this.displacementsFromDatumPlane))
       const toAdd = -this.midStationValue(this.displacementsFromDatumPlane)
       return this.displacementsFromDatumPlane.map(x => roundTo(x + toAdd, 2))
     } else if (this.lineSegment.start == Direction.North) {
