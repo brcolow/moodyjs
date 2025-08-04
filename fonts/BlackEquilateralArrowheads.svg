@@ -1,0 +1,34 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" >
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1">
+<metadata>
+Created by FontForge 20230101 at Fri Nov 11 06:58:16 2022
+ By mikee
+(c) 2022 Microsoft Corporation. All Rights Reserved.
+</metadata>
+<defs>
+<font id="SegoeUISymbol" horiz-adv-x="1627" >
+  <font-face 
+    font-family="Segoe UI Symbol"
+    font-weight="400"
+    font-stretch="normal"
+    units-per-em="2048"
+    panose-1="2 11 5 2 4 2 4 2 2 3"
+    ascent="1638"
+    descent="-410"
+    bbox="173 0 1653 1480"
+    underline-thickness="119"
+    underline-position="-237"
+    unicode-range="U+2B9C-2B9F"
+  />
+    <missing-glyph />
+    <glyph glyph-name="uni2B9C" unicode="&#x2b9c;" 
+d="M1455 0l-1282 740l1282 740l-428 -740z" />
+    <glyph glyph-name="uni2B9E" unicode="&#x2b9e;" 
+d="M173.178 0l1281.84 740l-1281.84 740l427.947 -740z" />
+    <glyph glyph-name="uni2B9D" unicode="&#x2b9d;" horiz-adv-x="1825" 
+d="M173 198l740 1282l740 -1282l-740 428z" />
+    <glyph glyph-name="uni2B9F" unicode="&#x2b9f;" horiz-adv-x="1825" 
+d="M1653 1282l-740 -1282l-740 1282l740 -428z" />
+  </font>
+</defs></svg>

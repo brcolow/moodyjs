@@ -6,6 +6,19 @@
   <title>MoodyJS</title>
   <script type="module" src="main.js"></script>
   <style>
+    @font-face {
+      font-family: "Black Equilateral Arrowheads";
+      font-style: normal;
+      font-weight: 400;
+      src:
+        local("Segoe UI Symbol"),
+        url("fonts/BlackEquilateralArrowheads.woff2") format('woff2'),
+        url("fonts/BlackEquilateralArrowheads.woff") format('woff'),
+        url("fonts/BlackEquilateralArrowheads.ttf") format('truetype'),
+        url("fonts/BlackEquilateralArrowheads.otf") format('opentype'),
+        url('fonts/BlackEquilateralArrowheads.svg') format('svg');
+    }
+
     :root {
       --l1-color: #F44336;
       --l2-color: #FFEB3B;
@@ -342,7 +355,7 @@
       <g id="topStartingDiagonalLineGroup" stroke="var(--l1-color)" fill="var(--l1-color)" stroke-width="0.018em">
         <path id="topStartingDiagonalLine" />
         <use xlink:href="#topStartingDiagonalLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
-        <text style="font-size: 0.1875rem; dominant-baseline: central" dx="-0.05em" dy="-0.05em">
+        <text style="font-family: 'Black Equilateral Arrowheads'; font-size: 0.1875rem; dominant-baseline: central" dx="-0.05em" dy="-0.05em">
           <textPath href="#topStartingDiagonalLine" startOffset="25%">⮞</textPath>
         </text>
       </g>
@@ -351,7 +364,7 @@
       <g id="bottomStartingDiagonalLineGroup" stroke="var(--l2-color)" fill="var(--l2-color)" stroke-width="0.018em">
         <path id="bottomStartingDiagonalLine" />
         <use xlink:href="#bottomStartingDiagonalLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
-        <text style="font-size: 0.1875rem; dominant-baseline: central" dx="-0.05em" dy="-0.05em">
+        <text style="font-family: 'Black Equilateral Arrowheads'; font-size: 0.1875rem; dominant-baseline: central" dx="-0.05em" dy="-0.05em">
           <textPath href="#bottomStartingDiagonalLine" startOffset="75%">⮜</textPath>
         </text>
       </g>
@@ -360,7 +373,7 @@
       <g id="northPerimeterLineGroup" stroke="var(--l3-color)" fill="var(--l3-color)" stroke-width="0.018em">
         <path id="northPerimeterLine" />
         <use xlink:href="#northPerimeterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
-        <text style="font-size: 0.1875rem; dominant-baseline: central" dy="-0.055em">
+        <text style="font-family: 'Black Equilateral Arrowheads'; font-size: 0.1875rem; dominant-baseline: central" dy="-0.055em">
           <textPath href="#northPerimeterLine" startOffset="75%">⮜</textPath>
         </text>
       </g>
@@ -369,7 +382,7 @@
       <g id="eastPerimeterLineGroup" stroke="var(--l4-color)" fill="var(--l4-color)" stroke-width="0.018em">
         <path id="eastPerimeterLine" />
         <use xlink:href="#eastPerimeterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
-        <text style="font-size: 0.1875rem; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+        <text style="font-family: 'Black Equilateral Arrowheads'; font-size: 0.1875rem; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
           <textPath href="#eastPerimeterLine" startOffset="25%">⮞</textPath>
         </text>
       </g>
@@ -378,7 +391,7 @@
       <g id="southPerimeterLineGroup" stroke="var(--l5-color)" fill="var(--l5-color)" stroke-width="0.018em">
         <path id="southPerimeterLine" />
         <use xlink:href="#southPerimeterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
-        <text style="font-size: 0.1875rem; dominant-baseline: central;" dy="-0.07em">
+        <text style="font-family: 'Black Equilateral Arrowheads'; font-size: 0.1875rem; dominant-baseline: central;" dy="-0.07em">
           <textPath href="#southPerimeterLine" startOffset="25%">⮞</textPath>
         </text>
       </g>
@@ -387,7 +400,7 @@
       <g id="westPerimeterLineGroup" stroke="var(--l6-color)" fill="var(--l6-color)" stroke-width="0.018em">
         <path id="westPerimeterLine" />
         <use xlink:href="#westPerimeterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
-        <text style="font-size: 0.1875rem; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+        <text style="font-family: 'Black Equilateral Arrowheads'; font-size: 0.1875rem; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
           <textPath href="#westPerimeterLine" startOffset="75%">⮜</textPath>
         </text>
       </g>
@@ -396,7 +409,7 @@
       <g id="horizontalCenterLineGroup" stroke="var(--l7-color)" fill="var(--l7-color)" stroke-width="0.018em">
         <path id="horizontalCenterLine" />
         <use xlink:href="#horizontalCenterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
-        <text style="font-size: 0.1875rem; dominant-baseline: central;" dy="-0.055em">
+        <text style="font-family: 'Black Equilateral Arrowheads'; font-size: 0.1875rem; dominant-baseline: central;" dy="-0.055em">
           <textPath href="#horizontalCenterLine" startOffset="25%">⮞</textPath>
         </text>
       </g>
@@ -405,7 +418,7 @@
       <g id="verticalCenterLineGroup" stroke="var(--l8-color)" fill="var(--l8-color)" stroke-width="0.018em">
         <path id="verticalCenterLine" />
         <use xlink:href="#verticalCenterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
-        <text style="font-size: 0.1875rem; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
+        <text style="font-family: 'Black Equilateral Arrowheads'; font-size: 0.1875rem; dominant-baseline: central; writing-mode: vertical-lr" dx="0.045em">
           <textPath href="#verticalCenterLine" startOffset="25%">⮞</textPath>
         </text>
       </g>
