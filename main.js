@@ -60,7 +60,7 @@ window.addEventListener('DOMContentLoaded', () => {
   })
 })
 
-// Creates the tables for each line (along with its' own table graphic) and adds to the DOM.
+// Creates the tables for each line (along with its' own table graphic) and adds them to the DOM.
 function createTables() {
   const surfacePlate = new SurfacePlate(document.getElementById("plateHeight").value,
     document.getElementById("plateWidth").value, document.getElementById("reflectorFootSpacing").value)
@@ -102,6 +102,7 @@ function createTables() {
   const inchMultiplier = 1 // No multiplier for inches
   const metricMultiplier = 25.4 // Convert inches to micrometers (you can adjust the unit if needed)
   document.getElementById("overallFlatnessInch").addEventListener("input", event => {
+    // Highlight the flatness targets for the various ISO/ANSI grades if the current table is flat enough for them.
     for (const flatnessInput of flatnessInputs) {
       const isMetric = flatnessInput.id.endsWith('Metric')
       const multiplier = isMetric ? metricMultiplier : inchMultiplier // Use appropriate multiplier
@@ -367,15 +368,42 @@ function mapToSphere(mouseX, mouseY, canvas) {
   }
 }
 
+/**
+ * Calculates the axis-aligned bounding box (AABB) of the surface plate 
+ * for a given MoodyReport.
+ *
+ * @param {object} moodyReport The report object containing vertex data.
+ * @param {number} zMultiplier A multiplier to apply to the Z-axis values.
+ * @returns {object|null} An object containing the minimum and maximum X, Y, and Z
+ * coordinates of the bounding box, or null if the input has no vertices.
+ * @property {number} minX The minimum X coordinate.
+ * @property {number} maxX The maximum X coordinate.
+ * @property {number} minY The minimum Y coordinate.
+ * @property {number} maxY The maximum Y coordinate.
+ * @property {number} minZ The minimum Z coordinate.
+ * @property {number} maxZ The maximum Z coordinate.
+ */
 function getBoundingBox(moodyReport) {
-  const vertices = moodyReport.vertices(zMultiplier).flatMap(vertex => new Vector3(vertex[0], vertex[1], vertex[2]))
-  const minX = Math.min(...vertices.map(vertex => vertex.x))
-  const maxX = Math.max(...vertices.map(vertex => vertex.x))
-  const minY = Math.min(...vertices.map(vertex => vertex.y))
-  const maxY = Math.max(...vertices.map(vertex => vertex.y))
-  const minZ = Math.min(...vertices.map(vertex => vertex.z))
-  const maxZ = Math.max(...vertices.map(vertex => vertex.z))
-  return { "minX": minX, "maxX": maxX, "minY": minY, "maxY": maxY, "minZ": minZ, "maxZ": maxZ }
+  const vertices = moodyReport.vertices(zMultiplier);
+
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  let minZ = Infinity, maxZ = -Infinity;
+
+  for (const vertex of vertices) {
+    const x = vertex[0];
+    const y = vertex[1];
+    const z = vertex[2];
+
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+    minZ = Math.min(minZ, z);
+    maxZ = Math.max(maxZ, z);
+  }
+
+  return { minX, maxX, minY, maxY, minZ, maxZ };
 }
 
 function initialize3DTableGraphic(moodyReport) {
@@ -1038,22 +1066,19 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   if (!(zMultiplier in boundingBoxCache)) {
     boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
   }
-  const topEdgeVertices = tableSurfaceVertices.filter(v => v.y === boundingBoxCache[zMultiplier].maxY).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v0.x - v1.x)
-  const rightEdgeVertices = tableSurfaceVertices.filter(v => v.x === boundingBoxCache[zMultiplier].maxX).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)
-  const bottomEdgeVertices = tableSurfaceVertices.filter(v => v.y === boundingBoxCache[zMultiplier].minY).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v0.x - v1.x)
-  const leftEdgeVertices = tableSurfaceVertices.filter(v => v.x === boundingBoxCache[zMultiplier].minX).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)
-
-  const minX = Math.min(...moodyReport.vertices(zMultiplier).map(vertex => vertex[0]))
-  const maxX = Math.max(...moodyReport.vertices(zMultiplier).map(vertex => vertex[0]))
-  const minY = Math.min(...moodyReport.vertices(zMultiplier).map(vertex => vertex[1]))
-  const maxY = Math.max(...moodyReport.vertices(zMultiplier).map(vertex => vertex[1]))
+  const { minX, maxX, minY, maxY } = boundingBoxCache[zMultiplier]
+  const tolerance = 1e-4
+  const topEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.y - maxY) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v0.x - v1.x)
+  const rightEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.x - maxX) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)
+  const bottomEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.y - minY) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v0.x - v1.x)
+  const leftEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.x - minX) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)
 
   // We should be able to get rid of this once we fix the Moody lines being cut off.
   bottomEdgeVertices.unshift(new Vector3(minX, minY, bottomEdgeVertices[0].z))
   leftEdgeVertices.unshift(new Vector3(minX, minY, leftEdgeVertices[0].z))
 
-  const surfacePlateWidth = boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX
-  const surfacePlateHeight = boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY
+  const surfacePlateWidth = maxX - minX
+  const surfacePlateHeight = maxY - minY
   const surfacePlateThickness = surfacePlateWidth / 14
   const surfacePlateBottomDepth = boundingBoxCache[zMultiplier].minZ - surfacePlateThickness
 
