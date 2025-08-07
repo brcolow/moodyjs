@@ -673,6 +673,14 @@ class Quat extends Float32Array {
     return out
   }
 
+  /**
+   * Converts the quaternion to a 4x4 rotation matrix.
+   *
+   * This function assumes a right-handed coordinate system and produces a matrix
+   * for a clockwise rotation.
+   *
+   * @returns {Mat4} The resulting 4x4 rotation matrix.
+   */
   toMatrix4() {
     const invSqrt = 1 / Math.sqrt(this[0] * this[0] + this[1] * this[1] + this[2] * this[2] + this[3] * this[3])
     const w = this[0] * invSqrt
@@ -685,9 +693,9 @@ class Quat extends Float32Array {
     const yy = y * y, yz = y * z, zz = z * z
 
     return new Mat4(
-      1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy), 0,
-      2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx), 0,
-      2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy), 0,
+      1 - 2 * (yy + zz), 2 * (xy + wz), 2 * (xz - wy), 0,
+      2 * (xy - wz), 1 - 2 * (xx + zz), 2 * (yz + wx), 0,
+      2 * (xz + wy), 2 * (yz - wx), 1 - 2 * (xx + yy), 0,
       0, 0, 0, 1)
   }
 }

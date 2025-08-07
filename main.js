@@ -502,14 +502,25 @@ function initialize3DTableGraphic(moodyReport) {
       // Map mouse displacement onto virtual hemi-sphere/hyperbola.
       const currentVectorMapped = mapToSphere(event.clientX, event.clientY, canvas)
 
+      // https://www.euclideanspace.com/maths/algebra/vectors/angleBetween/
       // Determine rotation axis.
       const axis = Vector3.clone(startVectorMapped).cross(currentVectorMapped)
       let rotationQuat = Quat.identity()
 
-      if (axis.magnitude > 0.000001) {
-        // FIXME: The strange order of this may be related to how toMatrix4 is currently not producing correct values.
-        // See tests/quat.spec.js toMatrix4 tests.
-        rotationQuat = new Quat(Vector3.clone(startVectorMapped).dot(currentVectorMapped), axis[0], -axis[1], 0)
+      const dot = Vector3.clone(startVectorMapped).dot(currentVectorMapped)
+      // Assuming v1 and v2 are normalized, v1.len_squared() and v2.len_squared() are 1.
+      let w = 1 + dot
+
+      if (w < 0.000001) { 
+        // Vectors are 180 degrees apart
+        // A non-zero axis is required.
+        // One way is to find a perpendicular vector.
+        // This is one possible implementation for a 180 degree rotation.
+        const perpAxis = new Vector3(-startVectorMapped.y, startVectorMapped.x, 0).normalize()
+        rotationQuat = new Quat(0, -perpAxis.x, perpAxis.y, perpAxis.z)
+      } else {
+        rotationQuat = new Quat(w, -axis.x, axis.y, axis.z)
+        rotationQuat = rotationQuat.normalize()
       }
 
       tableRotationMatrix = Mat4.create()

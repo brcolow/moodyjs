@@ -109,6 +109,11 @@ describe("Quat", () => {
     })
   })
 
+  /**
+   * @description These tests assume a right-handed coordinate system.
+   * The rotations are defined as a clockwise rotation when looking
+   * down the axis of rotation toward the origin.
+   */
   describe("toMatrix4", () => {
     let quatA
 
@@ -126,48 +131,67 @@ describe("Quat", () => {
       )
     })
 
-    // SHOULD BE:
-    // 1, 0, 0, 0,
-    // 0, 0, -1, 0,
-    // 0, 1, 0, 0,
-    // 0, 0, 0, 1
+    it("should create an identity matrix for a quaternion representing no rotation", () => {
+        // Identity quaternion
+        quatA = Quat.create(1, 0, 0, 0)
+        const matrix = quatA.toMatrix4()
+        // Expected identity matrix
+        expect(matrix).toBeVec(
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+        )
+    })
+
     it("should create a correct rotation matrix for a quaternion representing a rotation around X-axis", () => {
-      quatA = Quat.create(Math.sqrt(0.5), 0, 0, Math.sqrt(0.5))
+      // Correct quaternion for a 90-degree rotation around the X-axis (w, x, y, z)
+      quatA = Quat.create(Math.sqrt(0.5), Math.sqrt(0.5), 0, 0)
       const matrix = quatA.toMatrix4()
-      // Expected matrix for 90 degrees rotation around X-axis
+      // Expected matrix for a 90-degree clockwise rotation around X-axis
       expect(matrix).toBeVec(
-        0, -1, 0, 0,
         1, 0, 0, 0,
         0, 0, 1, 0,
+        0, -1, 0, 0,
         0, 0, 0, 1
       )
     })
 
     it("should create a correct rotation matrix for a quaternion representing a rotation around Y-axis", () => {
-      quatA = Quat.create(Math.sqrt(0.5), 0, Math.sqrt(0.5), 0) // Quaternion for 90 degrees rotation around Y-axis
+      // Correct quaternion for a 90-degree rotation around the Y-axis (w, x, y, z)
+      quatA = Quat.create(Math.sqrt(0.5), 0, Math.sqrt(0.5), 0)
       const matrix = quatA.toMatrix4()
-      // Expected matrix for 90 degrees rotation around Y-axis
+      // Expected matrix for a 90-degree clockwise rotation around Y-axis
       expect(matrix).toBeVec(
-        0, 0, 1, 0,
+        0, 0, -1, 0,
         0, 1, 0, 0,
-        -1, 0, 0, 0,
+        1, 0, 0, 0,
         0, 0, 0, 1
       )
     })
 
-    // SHOULD BE:
-    // 0, -1, 0, 0,
-    // 1, 0, 0, 0,
-    // 0, 0, 1, 0,
-    // 0, 0, 0, 1
     it("should create a correct rotation matrix for a quaternion representing a rotation around Z-axis", () => {
-      quatA = Quat.create(Math.sqrt(0.5), Math.sqrt(0.5), 0, 0) // Quaternion for 90 degrees rotation around Z-axis
+      // Correct quaternion for a 90-degree rotation around the Z-axis (w, x, y, z)
+      quatA = Quat.create(Math.sqrt(0.5), 0, 0, Math.sqrt(0.5))
       const matrix = quatA.toMatrix4()
-      // Expected matrix for 90 degrees rotation around Z-axis
+      // Expected matrix for a 90-degree clockwise rotation around Z-axis
+      expect(matrix).toBeVec(
+        0, 1, 0, 0,
+        -1, 0, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+      )
+    })
+
+    it("should create a correct rotation matrix for a 180-degree rotation around X-axis", () => {
+      // Quaternion for a 180-degree rotation around X-axis
+      quatA = Quat.create(0, 1, 0, 0)
+      const matrix = quatA.toMatrix4()
+      // Expected matrix for a 180-degree rotation around X-axis
       expect(matrix).toBeVec(
         1, 0, 0, 0,
+        0, -1, 0, 0,
         0, 0, -1, 0,
-        0, 1, 0, 0,
         0, 0, 0, 1
       )
     })
