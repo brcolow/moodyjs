@@ -511,7 +511,7 @@ function initialize3DTableGraphic(moodyReport) {
       // Assuming v1 and v2 are normalized, v1.len_squared() and v2.len_squared() are 1.
       let w = 1 + dot
 
-      if (w < 0.000001) { 
+      if (w < 0.000001) {
         // Vectors are 180 degrees apart
         // A non-zero axis is required.
         // One way is to find a perpendicular vector.
@@ -805,7 +805,6 @@ function initialize3DTableGraphic(moodyReport) {
 
   function render(now) {
     updateFps(now)
-
     drawTableSurface(moodyReport, gl, programInfo, buffers, texture)
     requestAnimationFrame(render)
   }
@@ -1215,8 +1214,8 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
 
 function getColorBuffer(gl, moodyReport, triangleVertices, tableThicknessVertices) {
   const triangleZValues = triangleVertices.filter((v, i) => (i + 1) % 3 == 0)
-  const minZ = Math.min(...triangleZValues)
-  const maxZ = Math.max(...triangleZValues)
+  const minZ = boundingBoxCache[zMultiplier].minZ
+  const maxZ = boundingBoxCache[zMultiplier].maxZ
   // In case all values are the same minZ = maxZ (i.e. it is a totally flat plate with zero deviation) so we must avoid division by zero - just set all values to 0.0.
   const normalizedTriangleZValues = minZ === maxZ ? triangleZValues.map(() => 0.0) : triangleZValues.map(value => (value - minZ) / (maxZ - minZ))
   const colorMappedZValues = normalizedTriangleZValues.map(value => interpolate(turboColormapData, value))
@@ -1229,7 +1228,7 @@ function getColorBuffer(gl, moodyReport, triangleVertices, tableThicknessVertice
     .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.749019607843137, 0.8470588235294118, 1.0]).flat(1))
     .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
     .concat(colorMappedZValues.flat(1)) // Add color mapped colors for the triangles z-value.
-    .concat(tableThicknessVertices.slice(0, tableThicknessVertices.flat(1).length / 3).map(value => [0.5, 0.5, 0.5, 0.75]).flat(1)) // Add colors (gray) for table sides/bottom.
+    .concat(tableThicknessVertices.slice(0, tableThicknessVertices.flat(1).length / 3).flatMap(value => [0.5, 0.5, 0.5, 0.75])) // Add colors (gray) for table sides/bottom.
 
   const colorBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)

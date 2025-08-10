@@ -66,6 +66,7 @@ class Table {
   plateDiagonalAngle
   xInset
   yInset
+  vertexCache = []
 
   constructor(lineSegment, arcSecondData, reflectorFootSpacingInches, surfacePlateHeightInches, surfacePlateWidthInches, suggestedDiagonalInset) {
     this.lineSegment = lineSegment
@@ -188,25 +189,28 @@ class DiagonalTable extends Table {
   //   We could make it so we also calculate the suggestedHorizontal and suggestedVertical insets. Right now we are assuming the reflectorFootSpacing evenly divides into the plate width/height - but what if it is non-standard?
   // (0,0) origin is bottom left corner of surface plate.
   vertices(zMultiplier = 1) {
-    if (this.lineSegment.start == Direction.Northwest) {
-      // Top-Starting Diagonal
-      // y = -(table_width/table_height) * x + table_height
-      // sin(theta) = y / reflector_foot_spacing
-      // tan(theta) = y / x
-      return this.displacementsFromBaseLineLinear.map((z, i) => {
-        const x = this.xInset + (i * Math.sin(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
-        const y = this.surfacePlateHeightInches - this.yInset - (i * Math.cos(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
-        return [x, y, z * zMultiplier]
-      })
-    } else {
-      // Bottom starting diagonal
-      // y = (table_width/table_height) * x
-      return this.displacementsFromBaseLineLinear.map((z, i) => {
-        const x = this.surfacePlateWidthInches - this.xInset - (i * Math.sin(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
-        const y = this.surfacePlateHeightInches - this.yInset - (i * Math.cos(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
-        return [x, y, z * zMultiplier]
-      })
+    if (!(zMultiplier in this.vertexCache)) {
+      if (this.lineSegment.start == Direction.Northwest) {
+        // Top-Starting Diagonal
+        // y = -(table_width/table_height) * x + table_height
+        // sin(theta) = y / reflector_foot_spacing
+        // tan(theta) = y / x
+        this.vertexCache[zMultiplier] = this.displacementsFromBaseLineLinear.map((z, i) => {
+          const x = this.xInset + (i * Math.sin(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
+          const y = this.surfacePlateHeightInches - this.yInset - (i * Math.cos(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
+          return [x, y, z * zMultiplier]
+        })
+      } else {
+        // Bottom starting diagonal
+        // y = (table_width/table_height) * x
+        this.vertexCache[zMultiplier] = this.displacementsFromBaseLineLinear.map((z, i) => {
+          const x = this.surfacePlateWidthInches - this.xInset - (i * Math.sin(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
+          const y = this.surfacePlateHeightInches - this.yInset - (i * Math.cos(this.plateDiagonalAngle) * this.reflectorFootSpacingInches)
+          return [x, y, z * zMultiplier]
+        })
+      }
     }
+    return this.vertexCache[zMultiplier]
   }
 }
 
@@ -226,19 +230,22 @@ class PerimeterTable extends Table {
 
   // (0,0) origin is bottom left corner of surface plate.
   vertices(zMultiplier = 1) {
-    if (this.lineSegment.start == Direction.Northeast && this.lineSegment.end == Direction.Northwest) {
-      // North Perimeter
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.surfacePlateHeightInches - this.yInset, z * zMultiplier])
-    } else if (this.lineSegment.start == Direction.Northeast && this.lineSegment.end == Direction.Southeast) {
-      // East Perimeter
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
-    } else if (this.lineSegment.start == Direction.Southeast && this.lineSegment.end == Direction.Southwest) {
-      // South Perimeter
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.yInset, z * zMultiplier])
-    } else if (this.lineSegment.start == Direction.Northwest && this.lineSegment.end == Direction.Southwest) {
-      // West Perimeter
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.xInset, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
+    if (!(zMultiplier in this.vertexCache)) {
+      if (this.lineSegment.start == Direction.Northeast && this.lineSegment.end == Direction.Northwest) {
+        // North Perimeter
+        this.vertexCache[zMultiplier] = this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.surfacePlateHeightInches - this.yInset, z * zMultiplier])
+      } else if (this.lineSegment.start == Direction.Northeast && this.lineSegment.end == Direction.Southeast) {
+        // East Perimeter
+        this.vertexCache[zMultiplier] = this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
+      } else if (this.lineSegment.start == Direction.Southeast && this.lineSegment.end == Direction.Southwest) {
+        // South Perimeter
+        this.vertexCache[zMultiplier] = this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.yInset, z * zMultiplier])
+      } else if (this.lineSegment.start == Direction.Northwest && this.lineSegment.end == Direction.Southwest) {
+        // West Perimeter
+        this.vertexCache[zMultiplier] = this.displacementsFromBaseLineLinear.map((z, i) => [this.xInset, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
+      }
     }
+    return this.vertexCache[zMultiplier]
   }
 }
 
@@ -296,14 +303,18 @@ class CenterTable extends Table {
   }
 
   // (0,0) origin is bottom left corner of surface plate.
+
   vertices(zMultiplier = 1) {
-    if (this.lineSegment.start == Direction.East) {
-      // Horizontal Center Line
-      return this.displacementsFromBaseLineLinear.map((z, i) => { return [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.surfacePlateHeightInches / 2, z * zMultiplier] })
-    } else if (this.lineSegment.start == Direction.North) {
-      // Vertical Center Line
-      return this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches / 2, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
+    if (!(zMultiplier in this.vertexCache)) {
+      if (this.lineSegment.start == Direction.East) {
+        // Horizontal Center Line
+        this.vertexCache[zMultiplier] = this.displacementsFromBaseLineLinear.map((z, i) => { return [this.surfacePlateWidthInches - this.xInset - (i * this.reflectorFootSpacingInches), this.surfacePlateHeightInches / 2, z * zMultiplier] })
+      } else if (this.lineSegment.start == Direction.North) {
+        // Vertical Center Line
+        this.vertexCache[zMultiplier] = this.displacementsFromBaseLineLinear.map((z, i) => [this.surfacePlateWidthInches / 2, this.surfacePlateHeightInches - this.yInset - (i * this.reflectorFootSpacingInches), z * zMultiplier])
+      }
     }
+    return this.vertexCache[zMultiplier]
   }
 
   printDebug() {
@@ -410,7 +421,7 @@ class SurfacePlate {
     const suggestedDiagonalInset = ((diagonal % spacing) / 2) + (spacing / 2)
     const suggestedNumberOfDiagonalStations = Math.max(0, Math.floor((diagonal - (2 * suggestedDiagonalInset)) / spacing))
     const suggestedNumberOfHorizontalStations = Math.max(0, Math.floor((width - (2 * spacing)) / spacing))
-    const suggestedNumberOfVerticalStations = Math.max(0,  Math.floor((height - (2 * spacing)) / spacing))
+    const suggestedNumberOfVerticalStations = Math.max(0, Math.floor((height - (2 * spacing)) / spacing))
 
     return {
       suggestedDiagonalInset,
@@ -430,6 +441,7 @@ class MoodyReport {
   westPerimeterTable
   horizontalCenterTable
   verticalCenterTable
+  vertexCache = []
 
   constructor(surfacePlate, topStartingDiagonalReadings, bottomStartingDiagonalReadings, northPerimeterReadings, eastPerimeterReadings,
     southPerimeterReadings, westPerimeterReadings, horizontalCenterReadings, verticalCenterReadings) {
@@ -499,7 +511,10 @@ class MoodyReport {
   }
 
   vertices(zMultiplier = 1) {
-    return this.tables.map(table => table.vertices(zMultiplier)).flat(1)
+    if (!(zMultiplier in this.vertexCache)) {
+      this.vertexCache[zMultiplier] = this.tables.flatMap(table => table.vertices(zMultiplier))
+    }
+    return this.vertexCache[zMultiplier]
   }
 
   get tables() {
