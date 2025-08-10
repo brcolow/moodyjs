@@ -2,10 +2,13 @@
 
 An implementation of the "Moody Method" for surface plate flatness.
 
-[Try It](https://brcolow.github.io/moodyjs/). Click "Create Tables" and then "Fill Test Data" if you don't have any
-real values to put in.
+[Try It](https://brcolow.github.io/moodyjs/). 
 
-![Screenshot](/screenshot.png?raw=true "Screenshot")
+Click "Create Tables" and then "Fill Test Data" if you don't have any real values to put in.
+
+![Screenshot showing overall table data](/screenshot1.png?raw=true "Screenshot showing overall table data")
+![Screenshot showing 3D table surface](/screenshot2.png?raw=true "Screenshot showing 3D table surface")
+![Screenshot showing first two data tables](/screenshot3.png?raw=true "Screenshot showing first two data tables")
 
 ## Overall Flatness Grades
 
@@ -103,7 +106,8 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 
 ## Developer Notes
 
-You can just open index.html to run MoodyJS but because external resources are used (textures) these assets need to be served via http:// (and not file://) for the browser not to complain.
+You can just open `index.html` to run MoodyJS but because external resources are used (textures) these assets need to be served via `http(s)://` (and not `file://`) for the browser not to complain.
+
 This can be done by running `npm run serve` in the root project directory.
 
 ## Thanks To
