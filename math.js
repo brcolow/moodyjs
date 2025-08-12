@@ -135,7 +135,7 @@ class Vector3 extends Float32Array {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
   }
 
-  static norm(out, a) {
+  static normalize(out, a) {
     const x = a[0]
     const y = a[1]
     const z = a[2]
@@ -149,8 +149,8 @@ class Vector3 extends Float32Array {
     return out
   }
 
-  norm() {
-    return Vector3.norm(this, this)
+  normalize() {
+    return Vector3.normalize(this, this)
   }
 
   static scale(out, a, scale) {
@@ -171,7 +171,7 @@ class Vector3 extends Float32Array {
     return Math.sqrt(x * x + y * y + z * z)
   }
 
-  get magnitude() {
+  magnitude() {
     return Vector3.magnitude(this)
   }
 
@@ -698,6 +698,64 @@ class Quat extends Float32Array {
       2 * (xz + wy), 2 * (yz - wx), 1 - 2 * (xx + yy), 0,
       0, 0, 0, 1)
   }
+
+  /**
+   * Performs a spherical linear interpolation between two quat
+   * @category Static
+   *
+   * @param out - the receiving quaternion
+   * @param a - the first operand
+   * @param b - the second operand
+   * @param t - interpolation amount, in the range [0-1], between the two inputs
+   * @returns `out`
+   */
+  static slerp(out, a, b, t) {
+    // benchmarks:
+    //    http://jsperf.com/quaternion-slerp-implementations
+    const ax = a[0],
+      ay = a[1],
+      az = a[2],
+      aw = a[3]
+    let bx = b[0],
+      by = b[1],
+      bz = b[2],
+      bw = b[3]
+
+    let scale0
+    let scale1
+
+    // calc cosine
+    let cosom = ax * bx + ay * by + az * bz + aw * bw
+    // adjust signs (if necessary)
+    if (cosom < 0.0) {
+      cosom = -cosom
+      bx = -bx
+      by = -by
+      bz = -bz
+      bw = -bw
+    }
+    // calculate coefficients
+    if (1.0 - cosom > EPSILON) {
+      // standard case (slerp)
+      const omega = Math.acos(cosom)
+      const sinom = Math.sin(omega)
+      scale0 = Math.sin((1.0 - t) * omega) / sinom
+      scale1 = Math.sin(t * omega) / sinom
+    } else {
+      // "from" and "to" quaternions are very close
+      //  ... so we can do a linear interpolation
+      scale0 = 1.0 - t
+      scale1 = t
+    }
+    // calculate final values
+    out[0] = scale0 * ax + scale1 * bx
+    out[1] = scale0 * ay + scale1 * by
+    out[2] = scale0 * az + scale1 * bz
+    out[3] = scale0 * aw + scale1 * bw
+
+    return out
+  }
+
 }
 
 export { Mat4, Quat, Vector3 }

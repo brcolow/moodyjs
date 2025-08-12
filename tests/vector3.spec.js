@@ -85,11 +85,11 @@ describe("Vector3", () => {
       it("should return the length", () => { expect(Vector3.magnitude(vecA)).toBeCloseTo(3.741657) })
     })
 
-    describe("norm", () => {
+    describe("normalize", () => {
       beforeEach(() => { vecA = [5, 0, 0] })
 
       describe("with a separate output vector", () => {
-        beforeEach(() => { result = Vector3.norm(out, vecA) })
+        beforeEach(() => { result = Vector3.normalize(out, vecA) })
 
         it("should place values into out", () => { expect(out).toBeVec(1, 0, 0) })
         it("should return out", () => { expect(result).toBe(out) })
@@ -97,7 +97,7 @@ describe("Vector3", () => {
       })
 
       describe("when vecA is the output vector", () => {
-        beforeEach(() => { result = Vector3.norm(vecA, vecA) })
+        beforeEach(() => { result = Vector3.normalize(vecA, vecA) })
 
         it("should place values into vecA", () => { expect(vecA).toBeVec(1, 0, 0) })
         it("should return vecA", () => { expect(result).toBe(vecA) })

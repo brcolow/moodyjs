@@ -352,19 +352,38 @@ function toCanvasClipSpace(canvas, mouseX, mouseY) {
   return [normalizedX * 2 - 1, normalizedY * -2 + 1]
 }
 
-function mapToSphere(mouseX, mouseY, canvas) {
-  const xy = toUniformClipSpace(canvas, mouseX, mouseY)
-  const x = xy[0]
-  const y = xy[1]
+/**
+ * Maps 2D mouse coordinates on a canvas to a 3D point on a virtual sphere
+ * (arcball mapping) or a hyperbolic sheet outside the sphere.
+ *
+ * The function follows the Shoemake arcball algorithm:
+ * - Inside the sphere (x² + y² <= r² / 2): project directly to the sphere surface.
+ * - Outside the sphere: map to a hyperbolic sheet so the rotation speed remains smooth.
+ *
+ * @param {number} mouseX - Mouse X coordinate in canvas pixels.
+ * @param {number} mouseY - Mouse Y coordinate in canvas pixels.
+ * @param {HTMLCanvasElement} canvas - The canvas element being interacted with.
+ * @param {number} [radius=2] - Radius of the virtual sphere in the same units as normalized clip space coordinates.
+ * @returns {Vector3} A normalized 3D vector representing the mapped point on the sphere or hyperbolic sheet.
+ */
+function mapToSphere(mouseX, mouseY, canvas, radius = 2) {
+  const [ux, uy] = toUniformClipSpace(canvas, mouseX, mouseY)
+
+  // Make sure to scale by radius so we hit hyperbolic branch when needed.
+  const x = ux * radius
+  const y = uy * radius
+
   const lengthSquared = x * x + y * y
+  const radiusSquared = radius * radius
 
-  const radius = 3
-
-  // Map to sphere when x^2 + y^2 <= r^2 / 2 - otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
-  if (2 * lengthSquared <= radius * radius) {
-    return new Vector3(x, y, Math.sqrt((radius * radius) - lengthSquared))
+  // Map to sphere when x^2 + y^2 <= 0.5*r^2 - otherwise map to the hyperbolic function f(x,y) = (0.5*r^2) / sqrt(x^2 + y^2).
+  if (lengthSquared <= 0.5 * radiusSquared) {
+    return new Vector3(x, y, Math.sqrt(Math.max(0, radiusSquared - lengthSquared))).normalize()
+  } else if (lengthSquared > 0) {
+    return new Vector3(x, y, (0.5 * radiusSquared) / Math.sqrt(lengthSquared)).normalize()
   } else {
-    return new Vector3(x, y, ((radius * radius) / 2) / Math.sqrt(lengthSquared))
+    // This should never happen, but just in case.
+    return new Vector3(x, y, radius).normalize()
   }
 }
 
