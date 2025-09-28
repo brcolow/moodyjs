@@ -36,6 +36,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   zMultiplier = document.querySelector("#zMultiplier").value
   document.getElementById('fillTestData').addEventListener("click", () => {
+    if (document.getElementById("plateHeight").value !== 48 || document.getElementById("plateWidth").value !== 72) {
+      window.alert("The test data from Moody's article only works with a 48x72 surface plate - but your dimensions are different.")
+      return
+    }
     lines.forEach((line, lineIndex) => {
       moodyData[lineIndex].forEach((tableEntry, index) => {
         document.getElementById(line + "Table" + (index + 1)).value = tableEntry
@@ -46,10 +50,11 @@ window.addEventListener('DOMContentLoaded', () => {
   })
 
   document.getElementById('fillZeroData').addEventListener("click", () => {
+    // This is pretty lazy - we could instead use the suggested number of vertical/horizontal/diagonal stations instead of the selector query.
     lines.forEach((line, lineIndex) => {
-      moodyData[lineIndex].forEach((tableEntry, index) => {
-        document.getElementById(line + "Table" + (index + 1)).value = 0.0
-      })
+      Array.from(document.querySelectorAll(`#${line}Table input[id^="${line}Table"]`))
+      .filter(el => /^\d+$/.test(el.id.replace(`${line}Table`, '')))
+      .forEach(tableEntry => tableEntry.value = 0.0)
     })
     // Trigger table refresh.
     document.getElementsByClassName("readingInput")[0].dispatchEvent(new Event('input', { bubbles: true }))
