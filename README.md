@@ -2,6 +2,10 @@
 
 An implementation of the "Moody Method" for surface plate flatness.
 
+## Library
+
+[J.C. Moody, "How to Calibrate Surface Plates in the Plant", (reprint) The Tool Engineer, October 1955](https://raw.githubusercontent.com/brcolow/moodyjs/master/Moody1995.pdf)
+
 [Try It](https://brcolow.github.io/moodyjs/). 
 
 Click "Create Tables" and then "Fill Test Data" if you don't have any real values to put in.
