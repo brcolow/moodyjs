@@ -36,7 +36,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   zMultiplier = document.querySelector("#zMultiplier").value
   document.getElementById('fillTestData').addEventListener("click", () => {
-    if (document.getElementById("plateHeight").value !== 48 || document.getElementById("plateWidth").value !== 72) {
+    if (document.getElementById("plateHeight").value !== "48" || document.getElementById("plateWidth").value !== "72") {
       window.alert("The test data from Moody's article only works with a 48x72 surface plate - but your dimensions are different.")
       return
     }
