@@ -3,37 +3,7 @@
 // Copyright 2022 Brandon Jones, Colin MacKenzie IV
 const EPSILON = 0.000001
 
-class Vector2 extends Float32Array {
-  constructor(...values) {
-    switch (values.length) {
-      case 2: {
-        const v = values[0]
-        if (typeof v === 'number') {
-          super([v, values[1]])
-        } else {
-          super(v, values[1], 2)
-        }
-        break;
-      }
-      case 1: {
-        const v = values[0]
-        if (typeof v === 'number') {
-          super([v, v])
-        } else {
-          super(v, 0, 2)
-        }
-        break
-      }
-      default:
-        super(2)
-        break
-    }
-  }
-
-  get x() { return this[0] }
-  get y() { return this[1] }
-}
-
+// https://github.com/toji/gl-matrix/blob/glmatrix-next/src/vec3.ts
 class Vector3 extends Float32Array {
   constructor(...values) {
     switch (values.length) {
@@ -198,6 +168,7 @@ const IDENTITY_4X4 = new Float32Array([
   0, 0, 0, 1,
 ])
 
+// https://github.com/toji/gl-matrix/blob/glmatrix-next/src/mat4.ts
 class Mat4 extends Float32Array {
   constructor(...values) {
     switch (values.length) {
@@ -590,7 +561,6 @@ class Mat4 extends Float32Array {
 }
 
 // https://github.com/toji/gl-matrix/blob/glmatrix-next/src/quat.ts
-
 class Quat extends Float32Array {
   constructor(...values) {
     switch (values.length) {
