@@ -357,7 +357,7 @@ class SurfacePlate {
     this.surfacePlateHeightInches = surfacePlateHeightInches
     this.surfacePlateWidthInches = surfacePlateWidthInches
     this.reflectorFootSpacingInches = reflectorFootSpacingInches
-    this.surfacePlateDiagonalInches = Math.floor(Math.sqrt((surfacePlateHeightInches * surfacePlateHeightInches) + (surfacePlateWidthInches * surfacePlateWidthInches)))
+    this.surfacePlateDiagonalInches = Math.sqrt((surfacePlateHeightInches * surfacePlateHeightInches) + (surfacePlateWidthInches * surfacePlateWidthInches))
 
     Object.assign(this, SurfacePlate.calculateSuggestedStations(
       surfacePlateWidthInches,

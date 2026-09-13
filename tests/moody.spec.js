@@ -39,6 +39,16 @@ describe("Table", () => {
 })
 
 describe("SurfacePlate", () => {
+  it("should preserve the diagonal length and inset both ends equally", () => {
+    const plate = new SurfacePlate(48, 72, 4)
+    const diagonal = Math.sqrt(48 ** 2 + 72 ** 2)
+    const measuredLength = plate.suggestedNumberOfDiagonalStations * plate.reflectorFootSpacingInches
+
+    expect(plate.surfacePlateDiagonalInches).toBeCloseTo(diagonal, 8)
+    expect(plate.suggestedDiagonalInset).toBeCloseTo(3.2666, 4)
+    expect(diagonal - measuredLength - plate.suggestedDiagonalInset).toBeCloseTo(plate.suggestedDiagonalInset, 8)
+  })
+
   describe("calculateSuggestedStations", () => {
     it("should calculate correct values for 48x72 surface with 4in spacing", () => {
       const diag = Math.sqrt(48 ** 2 + 72 ** 2)

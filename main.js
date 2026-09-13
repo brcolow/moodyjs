@@ -67,8 +67,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Creates the tables for each line (along with its' own table graphic) and adds them to the DOM.
 function createTables() {
-  const surfacePlate = new SurfacePlate(document.getElementById("plateHeight").value,
-    document.getElementById("plateWidth").value, document.getElementById("reflectorFootSpacing").value)
+  const dimensions = ["plateHeight", "plateWidth", "reflectorFootSpacing"].map(id => Number(document.getElementById(id).value))
+  if (!dimensions.every(value => Number.isFinite(value) && value > 0)) {
+    window.alert("Surface plate dimensions and reflector foot spacing must be positive numbers.")
+    return
+  }
+  const surfacePlate = new SurfacePlate(...dimensions)
+  if (lines.some(line => !Number.isSafeInteger(getNumberOfStations(line, surfacePlate)) || getNumberOfStations(line, surfacePlate) < 1)) {
+    window.alert("Reflector foot spacing must allow at least one measurement on each line.")
+    return
+  }
+  clearTableResults()
+  resetTableView = true
   document.getElementById('plateDiagonal').value = roundToSlow(surfacePlate.surfacePlateDiagonalInches, 2)
   document.getElementById('diagonalInset').value = surfacePlate.suggestedDiagonalInset
   document.getElementById('numHorizontalStations').value = surfacePlate.suggestedNumberOfHorizontalStations
@@ -105,8 +115,8 @@ function createTables() {
   document.getElementById('grade0Inches'), document.getElementById('grade1Inches'), document.getElementById('grade2Inches'), document.getElementById('grade3Inches'),
   document.getElementById('grade0Metric'), document.getElementById('grade1Metric'), document.getElementById('grade2Metric'), document.getElementById('grade3Metric')]
   const inchMultiplier = 1 // No multiplier for inches
-  const metricMultiplier = 25.4 // Convert inches to micrometers (you can adjust the unit if needed)
-  document.getElementById("overallFlatnessInch").addEventListener("input", event => {
+  const metricMultiplier = 1 / microinchesToMicrons // Convert micrometers to microinches.
+  document.getElementById("overallFlatnessInch").oninput = event => {
     // Highlight the flatness targets for the various ISO/ANSI grades if the current table is flat enough for them.
     for (const flatnessInput of flatnessInputs) {
       const isMetric = flatnessInput.id.endsWith('Metric')
@@ -117,7 +127,7 @@ function createTables() {
         flatnessInput.style.background = '#FFC7CE'
       }
     }
-  })
+  }
 
   createTableGraphic(surfacePlate)
 
@@ -140,7 +150,7 @@ function createTables() {
       const readingInput = document.createElement("input")
       readingInput.inputMode = "decimal"
       readingInput.required = true
-      readingInput.pattern = "[0-9]*[.,]{0,1}[0-9]*"
+      readingInput.pattern = "-?[0-9]*[.,]{0,1}[0-9]*"
       readingInput.id = line + "Table" + i
       readingInput.classList.add("readingInput", line + "ReadingInput")
       readingInput.addEventListener("input", () => {
@@ -211,22 +221,38 @@ function createTableGraphic(surfacePlate) {
   })
 }
 
+// Clear the old report when readings are incomplete or new tables are created.
+function clearTableResults() {
+  document.getElementById("overallFlatnessInch").value = ""
+  document.getElementById("overallFlatnessMetric").value = ""
+  document.querySelectorAll(".gradeInput").forEach(input => input.style.background = "")
+  lines.forEach(line => {
+    Array.from(document.getElementById(line + "Table").getElementsByTagName("tbody")[0].rows).forEach(row => {
+      while (row.cells.length > 2) {
+        row.deleteCell(-1)
+      }
+    })
+  })
+  document.getElementById("canvasContainer").style.display = "none"
+  document.getElementById("controls").style.display = "none"
+}
+
 // Recalculates the values by creating a new MoodyReport and updates the table cell values accordingly.
 function refreshTables(lines, surfacePlate) {
   // One of the autocollimator readings have changed - so recalculate everything (by making a new MoodyReport).
   const readingInputs = document.getElementsByClassName("readingInput")
   if (readingInputs.length > 0) {
-    if (Array.from(readingInputs).filter(readingInput => readingInput.value !== '').length == readingInputs.length) {
-      // All inputs for autocollimator readings are non-empty, so create new MoodyTable with the readings.
+    if (Array.from(readingInputs).every(readingInput => readingInput.validity.valid && Number.isFinite(Number(readingInput.value.replace(',', '.'))))) {
+      // All inputs for autocollimator readings are valid, so create new MoodyTable with the readings.
       const moodyReport = new MoodyReport(surfacePlate,
-        Array.from(document.getElementsByClassName("topStartingDiagonalReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
-        Array.from(document.getElementsByClassName("bottomStartingDiagonalReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
-        Array.from(document.getElementsByClassName("northPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
-        Array.from(document.getElementsByClassName("eastPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
-        Array.from(document.getElementsByClassName("southPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
-        Array.from(document.getElementsByClassName("westPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
-        Array.from(document.getElementsByClassName("horizontalCenterReadingInput")).filter(input => input.readOnly == false).map(input => input.value),
-        Array.from(document.getElementsByClassName("verticalCenterReadingInput")).filter(input => input.readOnly == false).map(input => input.value))
+        Array.from(document.getElementsByClassName("topStartingDiagonalReadingInput")).filter(input => input.readOnly == false).map(input => Number(input.value.replace(',', '.'))),
+        Array.from(document.getElementsByClassName("bottomStartingDiagonalReadingInput")).filter(input => input.readOnly == false).map(input => Number(input.value.replace(',', '.'))),
+        Array.from(document.getElementsByClassName("northPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => Number(input.value.replace(',', '.'))),
+        Array.from(document.getElementsByClassName("eastPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => Number(input.value.replace(',', '.'))),
+        Array.from(document.getElementsByClassName("southPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => Number(input.value.replace(',', '.'))),
+        Array.from(document.getElementsByClassName("westPerimeterReadingInput")).filter(input => input.readOnly == false).map(input => Number(input.value.replace(',', '.'))),
+        Array.from(document.getElementsByClassName("horizontalCenterReadingInput")).filter(input => input.readOnly == false).map(input => Number(input.value.replace(',', '.'))),
+        Array.from(document.getElementsByClassName("verticalCenterReadingInput")).filter(input => input.readOnly == false).map(input => Number(input.value.replace(',', '.'))))
 
       const allZPositions = moodyReport.vertices().map(point => point[2])
       const overallFlatness = (Math.max(...allZPositions) - Math.min(...allZPositions)) * 1000000 // Convert inches to microinches.
@@ -290,12 +316,16 @@ function refreshTables(lines, surfacePlate) {
           tableRow.insertCell(7).appendChild(column8Input)
         })
       })
+    } else {
+      clearTableResults()
     }
   }
 }
 
 const keyMap = []
-const boundingBoxCache = []
+let boundingBoxCache = []
+let update3DTableGraphic = null
+let resetTableView = true
 let startVectorMapped = null
 let cumulativeZoomFactor = 1
 let zMultiplier = -1
@@ -411,7 +441,26 @@ function getBoundingBox(moodyReport) {
   return { minX, maxX, minY, maxY, minZ, maxZ };
 }
 
+// Center the view on the table, leaving enough room even when all readings are zero.
+function reset3DTableView() {
+  const canvas = document.getElementById("glcanvas")
+  const { minX, maxX, minY, maxY, minZ, maxZ } = boundingBoxCache[zMultiplier]
+  const distance = Math.max((maxZ - minZ) * 8,
+    Math.max((maxX - minX) / (canvas.width / canvas.height), maxY - minY) / (2 * Math.tan(Math.PI / 8)) * 1.1)
+  viewMatrix = Mat4.create()
+  tableRotationMatrix = Mat4.create()
+  tableScaleMatrix = Mat4.create()
+  tableTranslateMatrix = Mat4.create()
+  savedTableRotation = Mat4.create()
+  cumulativeZoomFactor = 1
+  viewMatrix.translate([-(maxX + minX) / 2, -(maxY + minY) / 2, -maxZ - distance])
+}
+
 function initialize3DTableGraphic(moodyReport) {
+  if (update3DTableGraphic !== null) {
+    update3DTableGraphic(moodyReport)
+    return
+  }
   const canvas = document.getElementById("glcanvas")
   const gl = canvas.getContext("webgl2")
   // const gl = WebGLDebugUtils.makeDebugContext(canvas.getContext("webgl2"))
@@ -426,7 +475,7 @@ function initialize3DTableGraphic(moodyReport) {
     if (!(zMultiplier in boundingBoxCache)) {
       boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
     }
-    createAndBindTableVAO(moodyReport, gl, programInfo)
+    buffers = createAndBindTableVAO(moodyReport, gl, programInfo, buffers)
   })
 
   document.getElementById("showLines").addEventListener("change", event => showLines = event.target.checked)
@@ -456,7 +505,7 @@ function initialize3DTableGraphic(moodyReport) {
       lightingOn: gl.getUniformLocation(shaderProgram, "lightingOn"),
     },
   }
-  const buffers = createAndBindTableVAO(moodyReport, gl, programInfo)
+  let buffers
 
   const fieldOfView = (45 * Math.PI) / 180 // radians
   const aspect = canvas.width / canvas.height
@@ -790,14 +839,7 @@ function initialize3DTableGraphic(moodyReport) {
     tableTranslateMatrix.multiply(translateMatrix)
 
     if (keyMap['r'] === true) {
-      viewMatrix = Mat4.create()
-      tableRotationMatrix = Mat4.create()
-      tableScaleMatrix = Mat4.create()
-      tableTranslateMatrix = Mat4.create()
-      savedTableRotation = Mat4.create()
-      viewMatrix.translate([-(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2,
-      -(boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2,
-      -(boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) * 8])
+      reset3DTableView()
     }
   }
 
@@ -839,16 +881,27 @@ function initialize3DTableGraphic(moodyReport) {
   const fpsElem = document.querySelector("#fps")
   const avgElem = document.querySelector("#avg")
 
-  boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
-
-  viewMatrix.translate([-(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2,
-  -(boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2,
-  -(boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) * 8])
+  update3DTableGraphic = report => {
+    moodyReport = report
+    boundingBoxCache = []
+    buffers = createAndBindTableVAO(moodyReport, gl, programInfo, buffers)
+    if (resetTableView) {
+      reset3DTableView()
+      resetTableView = false
+    }
+  }
+  update3DTableGraphic(moodyReport)
   gl.bindVertexArray(null)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
 }
 
-function createAndBindTableVAO(moodyReport, gl, programInfo) {
+function createAndBindTableVAO(moodyReport, gl, programInfo, previousBuffers) {
+  if (previousBuffers) {
+    gl.deleteVertexArray(tableVAO)
+    for (const key of ["positionBuffer", "normalBuffer", "textureBuffer", "typeBuffer", "lineColors"]) {
+      gl.deleteBuffer(previousBuffers[key])
+    }
+  }
   tableVAO = gl.createVertexArray()
   gl.bindVertexArray(tableVAO)
   const buffers = getBuffers(gl, moodyReport, zMultiplier)
