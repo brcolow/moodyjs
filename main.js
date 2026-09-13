@@ -1,6 +1,6 @@
 import { interpolate, turboColormapData } from "./colormap.js"
-import { bowyerWatson, Triangle } from "./delaunay.js"
-import { Mat4, Quat, Vector3 } from "./math.js"
+import { bowyerWatson } from "./delaunay.js"
+import { Mat4, Vector3 } from "./math.js"
 import { getNumberOfStations, MoodyReport, SurfacePlate, roundTo, roundToSlow } from "./moody.js"
 import WebGLDebugUtils from "./webgl-debug.js"
 
@@ -34,10 +34,17 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById("plateWidth").value = moodySurfacePlateWidthInches
   document.getElementById("reflectorFootSpacing").value = moodyReflectorFootSpacingInches
 
-  zMultiplier = document.querySelector("#zMultiplier").value
   document.getElementById('fillTestData').addEventListener("click", () => {
-    if (document.getElementById("plateHeight").value !== "48" || document.getElementById("plateWidth").value !== "72") {
-      window.alert("The test data from Moody's article only works with a 48x72 surface plate - but your dimensions are different.")
+    if (Number(document.getElementById("plateHeight").value) !== 48 || Number(document.getElementById("plateWidth").value) !== 72 ||
+      Number(document.getElementById("reflectorFootSpacing").value) !== 4) {
+      window.alert("The test data from Moody's article only works with a 48x72 surface plate and 4-inch reflector foot spacing.")
+      return
+    }
+    if (document.getElementsByClassName("readingInput").length === 0) {
+      createTables()
+    }
+    if (lines.some((line, index) => document.getElementsByClassName(line + "ReadingInput").length !== moodyData[index].length + 1)) {
+      window.alert("Create tables for a 48x72 surface plate with 4-inch reflector foot spacing before filling the test data.")
       return
     }
     lines.forEach((line, lineIndex) => {
@@ -50,6 +57,9 @@ window.addEventListener('DOMContentLoaded', () => {
   })
 
   document.getElementById('fillZeroData').addEventListener("click", () => {
+    if (document.getElementsByClassName("readingInput").length === 0) {
+      createTables()
+    }
     // This is pretty lazy - we could instead use the suggested number of vertical/horizontal/diagonal stations instead of the selector query.
     lines.forEach((line, lineIndex) => {
       Array.from(document.querySelectorAll(`#${line}Table input[id^="${line}Table"]`))
@@ -57,7 +67,7 @@ window.addEventListener('DOMContentLoaded', () => {
       .forEach(tableEntry => tableEntry.value = 0.0)
     })
     // Trigger table refresh.
-    document.getElementsByClassName("readingInput")[0].dispatchEvent(new Event('input', { bubbles: true }))
+    document.getElementsByClassName("readingInput")[0]?.dispatchEvent(new Event('input', { bubbles: true }))
   })
 
   document.getElementById("createTables").addEventListener("click", () => {
@@ -80,7 +90,7 @@ function createTables() {
   clearTableResults()
   resetTableView = true
   document.getElementById('plateDiagonal').value = roundToSlow(surfacePlate.surfacePlateDiagonalInches, 2)
-  document.getElementById('diagonalInset').value = surfacePlate.suggestedDiagonalInset
+  document.getElementById('diagonalInset').value = Math.trunc(surfacePlate.suggestedDiagonalInset * 1000000) / 1000000
   document.getElementById('numHorizontalStations').value = surfacePlate.suggestedNumberOfHorizontalStations
   document.getElementById('numVerticalStations').value = surfacePlate.suggestedNumberOfVerticalStations
   document.getElementById('numDiagonalStations').value = surfacePlate.suggestedNumberOfDiagonalStations
@@ -96,7 +106,7 @@ function createTables() {
   document.getElementById('gradeAMetric').value = roundToSlow(gradeAAFlatnessReq * 2 * microinchesToMicrons, 2)
   document.getElementById('gradeBMetric').value = roundToSlow(gradeAAFlatnessReq * 4 * microinchesToMicrons, 2)
   const plateDiagonalFullMicrometers = plateDiagonalFull * 25.4
-  const micronsToMicroInches = 39.37
+  const micronsToMicroInches = 1 / microinchesToMicrons
   const isoGrade0FlatnessReq = 0.003 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 2.5
   document.getElementById('grade0Inches').value = roundToSlow(isoGrade0FlatnessReq * micronsToMicroInches, 2) // Convert from micrometers to microinches
   const isoGrade1FlatnessReq = 0.006 * (Math.ceil(plateDiagonalFullMicrometers / 100) * 100) + 5
@@ -110,22 +120,17 @@ function createTables() {
   document.getElementById('grade2Metric').value = roundToSlow(isoGrade2FlatnessReq, 2)
   document.getElementById('grade3Metric').value = roundToSlow(isoGrade3FlatnessReq, 2)
 
-  const flatnessInputs = [document.getElementById('gradeAAInches'), document.getElementById('gradeAInches'), document.getElementById('gradeBInches'),
-  document.getElementById('gradeAAMetric'), document.getElementById('gradeAMetric'), document.getElementById('gradeBMetric'),
-  document.getElementById('grade0Inches'), document.getElementById('grade1Inches'), document.getElementById('grade2Inches'), document.getElementById('grade3Inches'),
-  document.getElementById('grade0Metric'), document.getElementById('grade1Metric'), document.getElementById('grade2Metric'), document.getElementById('grade3Metric')]
-  const inchMultiplier = 1 // No multiplier for inches
-  const metricMultiplier = 1 / microinchesToMicrons // Convert micrometers to microinches.
+  const flatnessTargets = {
+    AA: gradeAAFlatnessReq, A: gradeAAFlatnessReq * 2, B: gradeAAFlatnessReq * 4,
+    0: isoGrade0FlatnessReq * micronsToMicroInches, 1: isoGrade1FlatnessReq * micronsToMicroInches,
+    2: isoGrade2FlatnessReq * micronsToMicroInches, 3: isoGrade3FlatnessReq * micronsToMicroInches
+  }
   document.getElementById("overallFlatnessInch").oninput = event => {
-    // Highlight the flatness targets for the various ISO/ANSI grades if the current table is flat enough for them.
-    for (const flatnessInput of flatnessInputs) {
-      const isMetric = flatnessInput.id.endsWith('Metric')
-      const multiplier = isMetric ? metricMultiplier : inchMultiplier // Use appropriate multiplier
-      if (Number(event.target.value) <= Number(flatnessInput.value) * multiplier) {
-        flatnessInput.style.background = '#C6EFCE'
-      } else {
-        flatnessInput.style.background = '#FFC7CE'
-      }
+    // Compare unrounded microinch values, using the same result for both unit displays.
+    for (const [grade, target] of Object.entries(flatnessTargets)) {
+      const background = event.detail <= target ? '#C6EFCE' : '#FFC7CE'
+      document.getElementById('grade' + grade + 'Inches').style.background = background
+      document.getElementById('grade' + grade + 'Metric').style.background = background
     }
   }
 
@@ -257,7 +262,7 @@ function refreshTables(lines, surfacePlate) {
       const allZPositions = moodyReport.vertices().map(point => point[2])
       const overallFlatness = (Math.max(...allZPositions) - Math.min(...allZPositions)) * 1000000 // Convert inches to microinches.
       document.getElementById("overallFlatnessInch").value = roundTo(overallFlatness, 2)
-      document.getElementById("overallFlatnessInch").dispatchEvent(new Event('input', { 'bubbles': true }))
+      document.getElementById("overallFlatnessInch").dispatchEvent(new CustomEvent('input', { bubbles: true, detail: overallFlatness }))
       document.getElementById("overallFlatnessMetric").value = roundTo(overallFlatness * 0.0254, 2)
       document.getElementById("overallFlatnessMetric").dispatchEvent(new Event('input', { 'bubbles': true }))
 
@@ -326,7 +331,7 @@ const keyMap = []
 let boundingBoxCache = []
 let update3DTableGraphic = null
 let resetTableView = true
-let startVectorMapped = null
+let startMousePosition = null
 let cumulativeZoomFactor = 1
 let zMultiplier = -1
 let tableVAO = null
@@ -387,22 +392,6 @@ function toCanvasClipSpace(canvas, mouseX, mouseY) {
   return [normalizedX * 2 - 1, normalizedY * -2 + 1]
 }
 
-function mapToSphere(mouseX, mouseY, canvas) {
-  const xy = toUniformClipSpace(canvas, mouseX, mouseY)
-  const x = xy[0]
-  const y = xy[1]
-  const lengthSquared = x * x + y * y
-
-  const radius = 3
-
-  // Map to sphere when x^2 + y^2 <= r^2 / 2 - otherwise map to the hyperbolic function f(x,y) = (r^2 / 2) / sqrt(x^2 + y^2).
-  if (2 * lengthSquared <= radius * radius) {
-    return new Vector3(x, y, Math.sqrt((radius * radius) - lengthSquared))
-  } else {
-    return new Vector3(x, y, ((radius * radius) / 2) / Math.sqrt(lengthSquared))
-  }
-}
-
 /**
  * Calculates the axis-aligned bounding box (AABB) of the surface plate 
  * for a given MoodyReport.
@@ -456,6 +445,13 @@ function reset3DTableView() {
   viewMatrix.translate([-(maxX + minX) / 2, -(maxY + minY) / 2, -maxZ - distance])
 }
 
+function zoom3DTable(point, zoomFactor) {
+  cumulativeZoomFactor *= zoomFactor
+  viewMatrix.translate(point)
+  viewMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
+  viewMatrix.translate([-point[0], -point[1], -point[2]])
+}
+
 function initialize3DTableGraphic(moodyReport) {
   if (update3DTableGraphic !== null) {
     update3DTableGraphic(moodyReport)
@@ -468,6 +464,10 @@ function initialize3DTableGraphic(moodyReport) {
     showWebGLFailedError()
     return
   }
+  zMultiplier = document.getElementById("zMultiplier").value
+  showLines = document.getElementById("showLines").checked
+  showHeatmap = document.getElementById("showHeatmap").checked
+  lightingOn = document.getElementById("lightingOn").checked
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
 
   document.querySelector("#zMultiplier").addEventListener("input", event => {
@@ -540,76 +540,54 @@ function initialize3DTableGraphic(moodyReport) {
   resizeObserver.observe(document.getElementById("canvasContainer"))
 
   canvas.onmousedown = event => {
-    startVectorMapped = mapToSphere(event.clientX, event.clientY, canvas)
+    if (event.button !== 0) {
+      return
+    }
+    savedTableRotation = tableRotationMatrix
+    startMousePosition = toUniformClipSpace(canvas, event.clientX, event.clientY)
   }
 
   document.onmouseup = () => {
-    startVectorMapped = null
+    startMousePosition = null
     savedTableRotation = tableRotationMatrix
   }
 
   document.onmousemove = event => {
-    // http://hjemmesider.diku.dk/~kash/papers/DSAGM2002_henriksen.pdf
-    // https://graphicsinterface.org/wp-content/uploads/gi1992-18.pdf
+    if (startMousePosition) {
+      const currentMousePosition = toUniformClipSpace(canvas, event.clientX, event.clientY)
+      const dx = currentMousePosition[0] - startMousePosition[0]
+      const dy = currentMousePosition[1] - startMousePosition[1]
+      // Match the previous sensitivity near the canvas center.
+      const angle = Math.hypot(dx, dy) * 0.6
 
-    if (startVectorMapped) {
-      // Map mouse displacement onto virtual hemi-sphere/hyperbola.
-      const currentVectorMapped = mapToSphere(event.clientX, event.clientY, canvas)
-
-      // https://www.euclideanspace.com/maths/algebra/vectors/angleBetween/
-      // Determine rotation axis.
-      const axis = Vector3.clone(startVectorMapped).cross(currentVectorMapped)
-      let rotationQuat = Quat.identity()
-
-      const dot = Vector3.clone(startVectorMapped).dot(currentVectorMapped)
-      // Assuming v1 and v2 are normalized, v1.len_squared() and v2.len_squared() are 1.
-      let w = 1 + dot
-
-      if (w < 0.000001) {
-        // Vectors are 180 degrees apart
-        // A non-zero axis is required.
-        // One way is to find a perpendicular vector.
-        // This is one possible implementation for a 180 degree rotation.
-        const perpAxis = new Vector3(-startVectorMapped.y, startVectorMapped.x, 0).normalize()
-        rotationQuat = new Quat(0, -perpAxis.x, perpAxis.y, perpAxis.z)
-      } else {
-        rotationQuat = new Quat(w, -axis.x, axis.y, axis.z)
-        rotationQuat = rotationQuat.normalize()
+      const { minX, maxX, minY, maxY, minZ, maxZ } = boundingBoxCache[zMultiplier]
+      const transform = Mat4.clone(tableScaleMatrix).multiply(tableTranslateMatrix)
+      const center = new Vector3((maxX + minX) / 2, (maxY + minY) / 2, (maxZ + minZ) / 2)
+        .transformMat4(Mat4.clone(transform).multiply(savedTableRotation))
+      // Apply the drag in screen axes around the transformed center of the table.
+      tableRotationMatrix = Mat4.clone(transform).invert()
+      tableRotationMatrix.translate(center)
+      if (angle > 0) {
+        tableRotationMatrix.rotate(angle, [dy, dx, 0])
       }
-
-      tableRotationMatrix = Mat4.create()
-      tableRotationMatrix.multiply(savedTableRotation)
-      // We want rotation to be centered on the center of the table.
-      tableRotationMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2,
-      (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2,
-      (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
-      tableRotationMatrix.multiply(rotationQuat.toMatrix4())
-      tableRotationMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2),
-      -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2),
-      -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+      tableRotationMatrix.translate([-center.x, -center.y, -center.z])
+      tableRotationMatrix.multiply(transform).multiply(savedTableRotation)
     }
   }
 
   canvas.onwheel = event => {
     event.preventDefault()
     const direction = event.deltaY < 0 ? 1 : -1
-    const zoomFactor = 1 + direction * 0.1
-    if (direction === 1 && cumulativeZoomFactor > 10) {
-      return
-    }
-    if (direction === -1 && cumulativeZoomFactor < 0.16) {
+    const zoomFactor = Math.min(10, Math.max(0.16, cumulativeZoomFactor * (1 + direction * 0.1))) / cumulativeZoomFactor
+    if (zoomFactor === 1) {
       return
     }
 
     if (event.ctrlKey) {
       // Do center-based zoom.
-      viewMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2,
-      (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2,
-      (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
-      viewMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
-      viewMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2),
-      -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2),
-      -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+      const { minX, maxX, minY, maxY, minZ, maxZ } = boundingBoxCache[zMultiplier]
+      const center = new Vector3((maxX + minX) / 2, (maxY + minY) / 2, (maxZ + minZ) / 2).transformMat4(tableModelMatrix)
+      zoom3DTable(center, zoomFactor)
       return
     }
 
@@ -621,7 +599,7 @@ function initialize3DTableGraphic(moodyReport) {
     // that amount which should keep the point under the cursor unchanged.
 
     // Starting from clip space (i.e. normalized device coordinates) of the mouse position go to
-    // the world position by multiplying by the inverse of P*V*M matrices which is M-1 * V-1 * P-1.
+    // the model position by multiplying by the inverse of P*V*M matrices which is M-1 * V-1 * P-1.
     let mouseLocationClipSpace = toCanvasClipSpace(canvas, event.clientX, event.clientY)
     // The mouse ray will start at zNear plane (-1 in NDC coords) and end at the zFar plane (1 in NDC coords).
     let rayStartClipSpace = new Vector3(mouseLocationClipSpace[0], mouseLocationClipSpace[1], -1)
@@ -629,9 +607,7 @@ function initialize3DTableGraphic(moodyReport) {
 
     let rayStart = Vector3.create()
     let rayEnd = Vector3.create()
-    // TODO: Not sure if we want modelMatrix to be part of the inverse transform for this...since we are trying to go to "world space".
     let inverseTransform = Mat4.clone(tableModelMatrix).invert().multiply(Mat4.clone(viewMatrix).invert()).multiply(Mat4.clone(projectionMatrix).invert())
-    // let inverseTransform = Mat4.clone(viewMatrix).invert().multiply(Mat4.clone(projectionMatrix).invert())
 
     rayStart = Vector3.transformMat4(rayStart, rayStartClipSpace, inverseTransform)
     rayEnd = Vector3.transformMat4(rayEnd, rayEndClipSpace, inverseTransform)
@@ -640,30 +616,20 @@ function initialize3DTableGraphic(moodyReport) {
     // Now that we have the ray, check to see which (if any) triangles of the table surface it intersects (and where on that triangle).
     // TODO: We may also want to support mouse position zooming when the cursor is off the table, and we could do that by testing intersection
     // with the plane z = boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2.
-    for (let i = 0; i < buffers.triangleVertices.length; i += 9) {
-      let v0 = new Vector3(buffers.triangleVertices[i], buffers.triangleVertices[i + 1], buffers.triangleVertices[i + 2])
-      let v1 = new Vector3(buffers.triangleVertices[i + 3], buffers.triangleVertices[i + 4], buffers.triangleVertices[i + 5])
-      let v2 = new Vector3(buffers.triangleVertices[i + 6], buffers.triangleVertices[i + 7], buffers.triangleVertices[i + 8])
+    const triangles = buffers.triangleVertices.concat(buffers.tableThicknessVertices.flat(1))
+    for (let i = 0; i < triangles.length; i += 9) {
+      let v0 = new Vector3(triangles[i], triangles[i + 1], triangles[i + 2])
+      let v1 = new Vector3(triangles[i + 3], triangles[i + 4], triangles[i + 5])
+      let v2 = new Vector3(triangles[i + 6], triangles[i + 7], triangles[i + 8])
       let result = rayTriangleIntersect(rayStart, rayEnd, v0, v1, v2)
-      if (result != null) {
-        intersection = { triangleIndex: i / 9, triangle: [v0, v1, v2], intersectionPoint: result.intersectionPoint }
-        break
+      if (result != null && (intersection.t === undefined || result.t < intersection.t)) {
+        intersection = result
       }
     }
 
     if (Object.keys(intersection).length !== 0) {
-      // We are on top of the table surface so we can indeed zoom in.
-      cumulativeZoomFactor *= zoomFactor
-
-      // See how much our point of intersection would move if we applied the zoom scaling to that point.
-      let scale = Mat4.create()
-      scale = scale.scale([zoomFactor, zoomFactor, zoomFactor])
-      const intersectionPointAfterZoom = Vector3.clone(intersection.intersectionPoint).transformMat4(scale)
-      const difference = intersectionPointAfterZoom.sub(intersection.intersectionPoint)
-      // Move the whole table by how much the point of intersection moved so that point stays in place.
-      // TODO: Figure out if we want to also translate the z-axis value.
-      viewMatrix.translate([-difference[0], -difference[1], 0])
-      viewMatrix.scale([zoomFactor, zoomFactor, zoomFactor])
+      // The view matrix takes world coordinates, so transform the model-space hit before zooming.
+      zoom3DTable(intersection.intersectionPoint.transformMat4(tableModelMatrix), zoomFactor)
     }
   }
 
@@ -789,13 +755,22 @@ function initialize3DTableGraphic(moodyReport) {
   }
 
   // Pretty weird hack that allows the canvas to be focused and thus receive keydown events.
-  canvas.tabIndex = 1
+  canvas.tabIndex = 0
+
+  canvas.onblur = () => {
+    Object.keys(keyMap).forEach(key => keyMap[key] = false)
+    startMousePosition = null
+  }
 
   canvas.onkeyup = event => {
     keyMap[event.key] = false
   }
 
   canvas.onkeydown = event => {
+    if (event.ctrlKey || event.metaKey || event.altKey ||
+      !['ArrowUp', 'ArrowDown', 'ArrowRight', 'ArrowLeft', 'w', 's', 'a', 'd', 'r'].includes(event.key)) {
+      return
+    }
     event.preventDefault()
     keyMap[event.key] = true
     const translateMatrix = Mat4.create()
@@ -818,22 +793,22 @@ function initialize3DTableGraphic(moodyReport) {
       translateMatrix.translate([0.0, 0.0, -1.0])
     }
     if (keyMap['a'] === true) {
-      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2,
-      (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2,
-      (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX + boundingBoxCache[zMultiplier].minX) / 2,
+      (boundingBoxCache[zMultiplier].maxY + boundingBoxCache[zMultiplier].minY) / 2,
+      (boundingBoxCache[zMultiplier].maxZ + boundingBoxCache[zMultiplier].minZ) / 2])
       translateMatrix.rotate(0.01, [0.0, 0.0, -1.0])
-      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2),
-      -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2),
-      -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX + boundingBoxCache[zMultiplier].minX) / 2),
+      -((boundingBoxCache[zMultiplier].maxY + boundingBoxCache[zMultiplier].minY) / 2),
+      -((boundingBoxCache[zMultiplier].maxZ + boundingBoxCache[zMultiplier].minZ) / 2)])
     }
     if (keyMap['d'] === true) {
-      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2,
-      (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2,
-      (boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2])
+      translateMatrix.translate([(boundingBoxCache[zMultiplier].maxX + boundingBoxCache[zMultiplier].minX) / 2,
+      (boundingBoxCache[zMultiplier].maxY + boundingBoxCache[zMultiplier].minY) / 2,
+      (boundingBoxCache[zMultiplier].maxZ + boundingBoxCache[zMultiplier].minZ) / 2])
       translateMatrix.rotate(0.01, [0.0, 0.0, 1.0])
-      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 2),
-      -((boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / 2),
-      -((boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2)])
+      translateMatrix.translate([-((boundingBoxCache[zMultiplier].maxX + boundingBoxCache[zMultiplier].minX) / 2),
+      -((boundingBoxCache[zMultiplier].maxY + boundingBoxCache[zMultiplier].minY) / 2),
+      -((boundingBoxCache[zMultiplier].maxZ + boundingBoxCache[zMultiplier].minZ) / 2)])
     }
 
     tableTranslateMatrix.multiply(translateMatrix)
@@ -1084,7 +1059,10 @@ void main() {
     // apply gamma correction (assume ambientColor, diffuseColor and specColor
     // have been linearized, i.e. have no gamma correction in them)
     vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
-    if (showHeatmap) {
+    if (vVertexType > 1.5) {
+      // The plate sides and bottom stay gray in both display modes.
+      outputColor = lightingOn ? vec4(color.rgb * colorGammaCorrected, color.a) : color;
+    } else if (showHeatmap) {
       if (lightingOn) {
         outputColor = vec4(color.rgb * colorGammaCorrected, color.a);
       } else {
@@ -1136,50 +1114,36 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   }
   const { minX, maxX, minY, maxY } = boundingBoxCache[zMultiplier]
   const tolerance = 1e-4
-  const topEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.y - maxY) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v0.x - v1.x)
+  const topEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.y - maxY) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v1.x - v0.x)
   const rightEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.x - maxX) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)
   const bottomEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.y - minY) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v0.x - v1.x)
-  const leftEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.x - minX) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)
-
-  // We should be able to get rid of this once we fix the Moody lines being cut off.
-  bottomEdgeVertices.unshift(new Vector3(minX, minY, bottomEdgeVertices[0].z))
-  leftEdgeVertices.unshift(new Vector3(minX, minY, leftEdgeVertices[0].z))
+  const leftEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.x - minX) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v1.y - v0.y)
 
   const surfacePlateWidth = maxX - minX
-  const surfacePlateHeight = maxY - minY
   const surfacePlateThickness = surfacePlateWidth / 14
   const surfacePlateBottomDepth = boundingBoxCache[zMultiplier].minZ - surfacePlateThickness
-
-  const tableCorners = {
-    "northWest": moodyReport.topStartingDiagonalTable.vertices(zMultiplier)[0].flat(1),
-    "northEast": moodyReport.bottomStartingDiagonalTable.vertices(zMultiplier)[0].flat(1),
-    "southEast": moodyReport.topStartingDiagonalTable.vertices(zMultiplier)[moodyReport.topStartingDiagonalTable.vertices().length - 1].flat(1),
-    "southWest": moodyReport.bottomStartingDiagonalTable.vertices(zMultiplier)[moodyReport.bottomStartingDiagonalTable.vertices().length - 1].flat(1)
-  }
 
   const tableThicknessVertices = []
   const sides = [topEdgeVertices, rightEdgeVertices, leftEdgeVertices, bottomEdgeVertices]
 
   sides.forEach(side => {
     for (let i = 0; i < side.length - 1; i++) {
-      let v = side[i]
-      tableThicknessVertices.push([v.x, v.y, v.z],
-        [v.x, v.y, surfacePlateBottomDepth],
-        [side[i + 1].x, side[i + 1].y, side[i + 1].z],
-        [side[i + 1].x, side[i + 1].y, side[i + 1].z],
-        [side[i + 1].x, side[i + 1].y, surfacePlateBottomDepth],
-        [v.x, v.y, surfacePlateBottomDepth])
+      const v = side[i]
+      const next = side[i + 1]
+      // Keep both triangles of the side facing outward.
+      tableThicknessVertices.push([v.x, v.y, v.z], [v.x, v.y, surfacePlateBottomDepth], [next.x, next.y, next.z],
+        [next.x, next.y, next.z], [v.x, v.y, surfacePlateBottomDepth], [next.x, next.y, surfacePlateBottomDepth])
     }
   })
   const tableBottomVertices = [
-    [maxX, minY, surfacePlateBottomDepth],
     [minX, minY, surfacePlateBottomDepth],
     [minX, maxY, surfacePlateBottomDepth],
     [maxX, minY, surfacePlateBottomDepth],
-    [maxX, maxY, surfacePlateBottomDepth],
-    [minX, maxY, surfacePlateBottomDepth]
+    [maxX, minY, surfacePlateBottomDepth],
+    [minX, maxY, surfacePlateBottomDepth],
+    [maxX, maxY, surfacePlateBottomDepth]
   ]
-  tableBottomVertices.forEach(v => tableThicknessVertices.unshift(v))
+  tableThicknessVertices.unshift(...tableBottomVertices)
 
   // FIXME: We want the Union jack lines to always be on top of the surface but it can dip underneath it at extreme points. Why though?
   const positions = new Float32Array(
@@ -1211,18 +1175,11 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
     const v0 = new Vector3(v0Arr[0], v0Arr[1], v0Arr[2])
     const v1 = new Vector3(v1Arr[0], v1Arr[1], v1Arr[2])
     const v2 = new Vector3(v2Arr[0], v2Arr[1], v2Arr[2])
-    // FIXME: Instead of this nonsense we could change the order that we add the vertices for the table sides.
-    let tri
-    if (i / 9 % 2 === 0) {
-      tri = new Triangle(v1, v0, v2)
-    } else {
-      tri = new Triangle(v0, v1, v2)
-    }
-    const length = tri.surfaceNormal().magnitude
+    const normal = Vector3.clone(v1).sub(v0).cross(Vector3.clone(v2).sub(v0)).norm()
     tableThicknessNormals.push(
-      tri.surfaceNormal().x / length, tri.surfaceNormal().y / length, tri.surfaceNormal().z / length,
-      tri.surfaceNormal().x / length, tri.surfaceNormal().y / length, tri.surfaceNormal().z / length,
-      tri.surfaceNormal().x / length, tri.surfaceNormal().y / length, tri.surfaceNormal().z / length,
+      normal.x, normal.y, normal.z,
+      normal.x, normal.y, normal.z,
+      normal.x, normal.y, normal.z,
     )
   }
 
@@ -1256,7 +1213,7 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   const types = new Float32Array(
     moodyReport.vertices(zMultiplier).flatMap(() => [0.0])                       // "Union jack" colored lines have type "0.0"
       .concat(triangulation.flatMap(() => [1.0, 1.0, 1.0]))                      // Table surface vertices have type "1.0"
-      .concat(new Array(tableThicknessVertices.flat(1).length / 3).fill(1.0)))   // Table sides/bottom have type "1.0"
+      .concat(new Array(tableThicknessVertices.length).fill(2.0)))              // Table sides/bottom have type "2.0"
 
   const typeBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, typeBuffer)
@@ -1286,7 +1243,7 @@ function getColorBuffer(gl, moodyReport, triangleVertices, tableThicknessVertice
     .concat(new Array(moodyReport.horizontalCenterTable.numStations).fill([0.0, 0.749019607843137, 0.8470588235294118, 1.0]).flat(1))
     .concat(new Array(moodyReport.verticalCenterTable.numStations).fill([0.607843137254902, 0.1568627450980392, 0.6862745098039216, 1.0]).flat(1))
     .concat(colorMappedZValues.flat(1)) // Add color mapped colors for the triangles z-value.
-    .concat(tableThicknessVertices.slice(0, tableThicknessVertices.flat(1).length / 3).flatMap(value => [0.5, 0.5, 0.5, 0.75])) // Add colors (gray) for table sides/bottom.
+    .concat(tableThicknessVertices.flatMap(() => [0.5, 0.5, 0.5, 0.75])) // Add colors (gray) for table sides/bottom.
 
   const colorBuffer = gl.createBuffer()
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)

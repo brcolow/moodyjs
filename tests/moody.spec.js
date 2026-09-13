@@ -1,4 +1,4 @@
-import { MoodyReport, SurfacePlate, Table } from "../moody"
+import { getNumberOfStations, MoodyReport, SurfacePlate, Table } from "../moody"
 import { expect, describe, it, beforeEach } from 'vitest'
 import "./test-utils"
 
@@ -116,6 +116,51 @@ describe("MoodyReport", () => {
       [11.7, 12.4, 12.1, 12.5, 12.0, 11.5, 11.5, 11.3, 11.3, 10.3, 10.8, 10.3, 10, 10.7, 10.4, 10.4],       // horizontalCenter
       [6.6, 6.4, 6.3, 6.5, 6.6, 6.9, 7.5, 7.4, 7.1, 7]                                                      // verticalCenter
     )
+  })
+
+  it("should correct a nonzero vertical center midpoint", () => {
+    const readings = moodyReport.tables.map(table => table.autocollimatorReadings.slice(1))
+    readings[7][4] += 1
+    const report = new MoodyReport(new SurfacePlate(48, 72, 4), ...readings)
+    const vertical = report.verticalCenterTable
+
+    expect(vertical.midStationValue(vertical.displacementsFromDatumPlane)).toBe(0.5)
+    expect(vertical.midStationValue(vertical.errorShiftedOut)).toBe(0)
+    for (const table of [report.topStartingDiagonalTable, report.bottomStartingDiagonalTable, report.horizontalCenterTable]) {
+      expect(vertical.midStationValue(vertical.displacementsFromBaseLine)).toBe(table.midStationValue(table.displacementsFromBaseLine))
+    }
+  })
+
+  it("should place the perimeter and center stations at their own insets", () => {
+    const endpoints = [
+      [[68, 44], [4, 44]], [[68, 44], [68, 4]],
+      [[68, 4], [4, 4]], [[4, 44], [4, 4]],
+      [[68, 24], [4, 24]], [[36, 44], [36, 4]]
+    ]
+    moodyReport.tables.slice(2).forEach((table, index) => {
+      expect(table.vertices()[0].slice(0, 2)).toEqual(endpoints[index][0])
+      expect(table.vertices().at(-1).slice(0, 2)).toEqual(endpoints[index][1])
+    })
+  })
+
+  it.each([[48, 72, 4], [36, 60, 3.5]])("should keep stations symmetric and one foot spacing apart on a %ix%i plate with %fin spacing", (height, width, spacing) => {
+    const plate = new SurfacePlate(height, width, spacing)
+    const lines = ["topStartingDiagonal", "bottomStartingDiagonal", "northPerimeter", "eastPerimeter",
+      "southPerimeter", "westPerimeter", "horizontalCenter", "verticalCenter"]
+    const report = new MoodyReport(plate, ...lines.map(line => Array(getNumberOfStations(line, plate)).fill(0)))
+    report.tables.forEach((table, index) => {
+      const vertices = table.vertices()
+      expect(vertices.length).toBe(getNumberOfStations(lines[index], plate) + 1)
+      for (let i = 1; i < vertices.length; i++) {
+        expect(Math.hypot(vertices[i][0] - vertices[i - 1][0], vertices[i][1] - vertices[i - 1][1])).toBeCloseTo(spacing, 8)
+      }
+      if (![3, 5].includes(index)) {
+        expect((vertices[0][0] + vertices.at(-1)[0]) / 2).toBeCloseTo(width / 2, 8)
+      }
+      if (![2, 4].includes(index)) {
+        expect((vertices[0][1] + vertices.at(-1)[1]) / 2).toBeCloseTo(height / 2, 8)
+      }
+    })
   })
 
   describe("using original Moody paper data", () => {

@@ -78,6 +78,13 @@ class Table {
     this.plateDiagonalAngle = Math.atan(this.surfacePlateWidthInches / this.surfacePlateHeightInches)
     this.xInset = this.suggestedDiagonalInset * Math.sin(this.plateDiagonalAngle)
     this.yInset = this.suggestedDiagonalInset * Math.cos(this.plateDiagonalAngle)
+    if (lineSegment !== SurfacePlate.TopStartingDiagonal && lineSegment !== SurfacePlate.BottomStartingDiagonal) {
+      // Perimeter and center lines have their own symmetric station insets.
+      const stations = SurfacePlate.calculateSuggestedStations(surfacePlateWidthInches, surfacePlateHeightInches,
+        Math.hypot(surfacePlateWidthInches, surfacePlateHeightInches), reflectorFootSpacingInches)
+      this.xInset = (surfacePlateWidthInches - stations.suggestedNumberOfHorizontalStations * reflectorFootSpacingInches) / 2
+      this.yInset = (surfacePlateHeightInches - stations.suggestedNumberOfVerticalStations * reflectorFootSpacingInches) / 2
+    }
   }
 
   printDebug() {
@@ -183,10 +190,7 @@ class DiagonalTable extends Table {
       (0.5 * this.sumOfDisplacements[this.numStations - 1] - this.midStationValue(this.sumOfDisplacements))), 2))
   }
 
-  // FIXME: Right now the vertices correspond to the beginning of the reflector - and the z-height it corresponds to is really the z-height at the end of the reflector. So the ends of all of our lines (made from these vertices) are short by one reflector foot spacing.
-  //   We need to shift the vertices by one reflectorFootSpacing value (for x and y) and make sure the (0, 0, z) point is being added correctly so its not too short.
-  // FIXME: The other thing is we should only be using xInset/yInset for the diagonal lines and not the other lines. We should use reflector foot spacing as insets for the other lines to align with Moody.
-  //   We could make it so we also calculate the suggestedHorizontal and suggestedVertical insets. Right now we are assuming the reflectorFootSpacing evenly divides into the plate width/height - but what if it is non-standard?
+  // The first vertex is the reference station; each reading supplies the next station's height.
   // (0,0) origin is bottom left corner of surface plate.
   vertices(zMultiplier = 1) {
     if (!(zMultiplier in this.vertexCache)) {
@@ -266,18 +270,9 @@ class CenterTable extends Table {
   get errorShiftedOut() {
     // Change the sign of the value opposite the midstation in Column #6 and add it to the value opposite each
     // station in Column #6. Enter the sums in Column #6a.
-    // Note: This is only done for the horizontal center line.
-    // For the vertical center-line just copy the values from Column #6.
-    if (this.lineSegment.start == Direction.East) {
-      // Horizontal Center Line
-      const toAdd = -this.midStationValue(this.displacementsFromDatumPlane)
-      return this.displacementsFromDatumPlane.map(x => roundTo(x + toAdd, 2))
-    } else if (this.lineSegment.start == Direction.North) {
-      // Vertical Center Line
-      return this.displacementsFromDatumPlane
-    } else {
-      throw new Error('Center line segment did not have start direction of East or West but was: ' + this.lineSegment.start)
-    }
+    // Both center lines need this correction; Moody's vertical example already has a zero midpoint.
+    const toAdd = -this.midStationValue(this.displacementsFromDatumPlane)
+    return this.displacementsFromDatumPlane.map(x => roundTo(x + toAdd, 2))
   }
 
   get lowestValueInColumn6() {
