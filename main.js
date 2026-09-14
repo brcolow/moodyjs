@@ -73,7 +73,75 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById("createTables").addEventListener("click", () => {
     createTables()
   })
+
+  lines.forEach((line, index) => {
+    const tab = document.getElementById(line + "Tab")
+    tab.addEventListener("focus", () => selectTableTab(line))
+    tab.addEventListener("click", () => selectTableTab(line))
+    tab.addEventListener("keydown", event => {
+      if (event.altKey || event.ctrlKey || event.metaKey) {
+        return
+      }
+      let nextIndex
+      switch (event.key) {
+        case "ArrowLeft":
+          nextIndex = (index + lines.length - 1) % lines.length
+          break
+        case "ArrowRight":
+          nextIndex = (index + 1) % lines.length
+          break
+        case "Home":
+          nextIndex = 0
+          break
+        case "End":
+          nextIndex = lines.length - 1
+          break
+        default:
+          return
+      }
+      event.preventDefault()
+      selectTableTab(lines[nextIndex], true)
+    })
+  })
+
+  // The main diagram and the smaller diagrams use the same table links.
+  document.addEventListener("click", event => {
+    if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return
+    }
+    const link = event.target.closest('a[href]')
+    const line = lines.find(line => link?.getAttribute("href") === "#" + line + "Table")
+    if (line && !document.getElementById("tableTabs").hidden) {
+      event.preventDefault()
+      if (window.location.hash !== link.getAttribute("href")) {
+        window.history.pushState(null, "", link.getAttribute("href"))
+      }
+      selectTableTab(line, true)
+    }
+  })
+  window.addEventListener("hashchange", () => {
+    const line = lines.find(line => window.location.hash === "#" + line + "Table")
+    if (line || window.location.hash === "") {
+      selectTableTab(line || lines[0], true)
+    }
+  })
 })
+
+function selectTableTab(line, focusTab = false) {
+  if (document.getElementById("tableTabs").hidden) {
+    return
+  }
+  lines.forEach(otherLine => {
+    const selected = otherLine === line
+    const tab = document.getElementById(otherLine + "Tab")
+    tab.setAttribute("aria-selected", selected)
+    tab.tabIndex = selected ? 0 : -1
+    document.getElementById(otherLine + "Panel").hidden = !selected
+  })
+  if (focusTab) {
+    document.getElementById(line + "Tab").focus()
+  }
+}
 
 // Creates the tables for each line (along with its' own table graphic) and adds them to the DOM.
 function createTables() {
@@ -157,6 +225,7 @@ function createTables() {
       readingInput.required = true
       readingInput.pattern = "-?[0-9]*[.,]{0,1}[0-9]*"
       readingInput.id = line + "Table" + i
+      readingInput.setAttribute("aria-label", SurfacePlate[linePropertyName].name + ", station " + (i + 1) + " autocollimator reading")
       readingInput.classList.add("readingInput", line + "ReadingInput")
       readingInput.addEventListener("input", () => {
         refreshTables(lines, surfacePlate)
@@ -181,7 +250,13 @@ function createTables() {
   lines.forEach(line => {
     document.getElementById(line + "Table0").value = "0"
     document.getElementById(line + "Table0").readOnly = true
+    document.getElementById(line + "Table0").tabIndex = -1
   })
+  const tableTabs = document.getElementById("tableTabs")
+  if (tableTabs.hidden) {
+    tableTabs.hidden = false
+    selectTableTab(lines.find(line => window.location.hash === "#" + line + "Table") || lines[0])
+  }
 }
 
 // Creates the main SVG table graphic (with multi-colored lines) and adds it to the DOM.
@@ -212,18 +287,6 @@ function createTableGraphic(surfacePlate) {
   document.getElementById('westPerimeterLine').setAttribute("d", `M ${xInset} ${surfacePlatePercentHeight - yInset} L ${xInset} ${yInset}`)
   document.getElementById('horizontalCenterLine').setAttribute("d", `M ${surfacePlatePercentWidth - xInset} ${surfacePlatePercentHeight / 2} L ${xInset} ${surfacePlatePercentHeight / 2}`)
   document.getElementById('verticalCenterLine').setAttribute("d", `M ${surfacePlatePercentWidth / 2} ${yInset} L ${surfacePlatePercentWidth / 2} ${surfacePlatePercentHeight - yInset}`)
-
-  // TODO: Later we will probably wire this up to open the tab corresponding to the clicked on line.
-  document.getElementById('topStartingDiagonalLineGroup').addEventListener('click', event => {
-    const selectedLine = (() => {
-      switch (event.originalTarget.tagName) {
-        case 'textPath':
-          return event.originalTarget.parentElement.parentElement.id.slice(0, -5)
-        case 'path':
-          return event.originalTarget.id
-      }
-    })();
-  })
 }
 
 // Clear the old report when readings are incomplete or new tables are created.
@@ -274,6 +337,7 @@ function refreshTables(lines, surfacePlate) {
         Array.from(document.getElementById(l + "Table").getElementsByTagName("tbody")[0].rows).forEach((tableRow, index) => {
           const column3Input = document.createElement("input")
           column3Input.readOnly = true
+          column3Input.tabIndex = -1
           column3Input.value = moodyReport[l + "Table"].angularDisplacements[index]
           if (tableRow.cells.length > 2) {
             tableRow.deleteCell(2)
@@ -282,6 +346,7 @@ function refreshTables(lines, surfacePlate) {
 
           const column4Input = document.createElement("input")
           column4Input.readOnly = true
+          column4Input.tabIndex = -1
           column4Input.value = moodyReport[l + "Table"].sumOfDisplacements[index]
           if (tableRow.cells.length > 3) {
             tableRow.deleteCell(3)
@@ -290,6 +355,7 @@ function refreshTables(lines, surfacePlate) {
 
           const column5Input = document.createElement("input")
           column5Input.readOnly = true
+          column5Input.tabIndex = -1
           column5Input.value = moodyReport[l + "Table"].cumulativeCorrectionFactors[index]
           if (tableRow.cells.length > 4) {
             tableRow.deleteCell(4)
@@ -298,6 +364,7 @@ function refreshTables(lines, surfacePlate) {
 
           const column6Input = document.createElement("input")
           column6Input.readOnly = true
+          column6Input.tabIndex = -1
           column6Input.value = moodyReport[l + "Table"].displacementsFromDatumPlane[index]
           if (tableRow.cells.length > 5) {
             tableRow.deleteCell(5)
@@ -306,6 +373,7 @@ function refreshTables(lines, surfacePlate) {
 
           const column7Input = document.createElement("input")
           column7Input.readOnly = true
+          column7Input.tabIndex = -1
           column7Input.value = moodyReport[l + "Table"].displacementsFromBaseLine[index]
           if (tableRow.cells.length > 6) {
             tableRow.deleteCell(6)
@@ -314,6 +382,7 @@ function refreshTables(lines, surfacePlate) {
 
           const column8Input = document.createElement("input")
           column8Input.readOnly = true
+          column8Input.tabIndex = -1
           column8Input.value = (moodyReport[l + "Table"].displacementsFromBaseLineLinear[index] * 10000).toFixed(4)
           if (tableRow.cells.length > 7) {
             tableRow.deleteCell(7)
@@ -1103,16 +1172,24 @@ function getBuffers(gl, moodyReport, zMultiplier) {
 
 function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   const tableSurfaceVertices = moodyReport.vertices(zMultiplier).map(vertex => new Vector3(vertex[0], vertex[1], vertex[2]))
+  if (!(zMultiplier in boundingBoxCache)) {
+    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
+  }
+  const { minX, maxX, minY, maxY } = boundingBoxCache[zMultiplier]
+
+  // Continue each perimeter height to the outline so the surface and walls share the same edge.
+  tableSurfaceVertices.push(
+    ...moodyReport.northPerimeterTable.vertices(zMultiplier).map(v => new Vector3(v[0], maxY, v[2])),
+    ...moodyReport.eastPerimeterTable.vertices(zMultiplier).map(v => new Vector3(maxX, v[1], v[2])),
+    ...moodyReport.southPerimeterTable.vertices(zMultiplier).map(v => new Vector3(v[0], minY, v[2])),
+    ...moodyReport.westPerimeterTable.vertices(zMultiplier).map(v => new Vector3(minX, v[1], v[2])))
+
   const triangulation = bowyerWatson(tableSurfaceVertices.flat(1))
   const triangulatedVertices = triangulation.flatMap(triangle => [
     [triangle.v0.x, triangle.v0.y, triangle.v0.z],
     [triangle.v1.x, triangle.v1.y, triangle.v1.z],
     [triangle.v2.x, triangle.v2.y, triangle.v2.z]])
 
-  if (!(zMultiplier in boundingBoxCache)) {
-    boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
-  }
-  const { minX, maxX, minY, maxY } = boundingBoxCache[zMultiplier]
   const tolerance = 1e-4
   const topEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.y - maxY) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.x === v.x) === index).sort((v0, v1) => v1.x - v0.x)
   const rightEdgeVertices = tableSurfaceVertices.filter(v => Math.abs(v.x - maxX) < tolerance).filter((v, index, arr) => arr.findIndex(other => other.y === v.y) === index).sort((v0, v1) => v0.y - v1.y)

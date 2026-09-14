@@ -9,7 +9,7 @@ import { interpolate, turboColormapData } from '../colormap'
 const source = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
 
 // Run the real event handlers with an in-memory canvas and WebGL context.
-function createScene(settings = {}, dimensions = [48, 72, 4]) {
+function createScene(settings = {}, dimensions = [48, 72, 4], useMoodyData = false) {
   const elements = new Map()
   const frames = []
   const uniforms = new Map()
@@ -37,7 +37,7 @@ function createScene(settings = {}, dimensions = [48, 72, 4]) {
   }
   const document = { getElementById: element, querySelector: selector => element(selector.slice(1)) }
   const api = runInNewContext(source.replace(/^import .*$/gm, '') + `
-    ;({ initialize3DTableGraphic, reset3DTableView, getNonColorBuffers, getColorBuffer, getBoundingBox,
+    ;({ initialize3DTableGraphic, reset3DTableView, getNonColorBuffers, getColorBuffer, getBoundingBox, moodyData,
       get model() { return tableModelMatrix }, get view() { return viewMatrix },
       get projection() { return projectionMatrix }, get zoom() { return cumulativeZoomFactor },
       get height() { return zMultiplier } })`, {
@@ -48,7 +48,7 @@ function createScene(settings = {}, dimensions = [48, 72, 4]) {
   const plate = new SurfacePlate(...dimensions)
   const lines = ['topStartingDiagonal', 'bottomStartingDiagonal', 'northPerimeter', 'eastPerimeter',
     'southPerimeter', 'westPerimeter', 'horizontalCenter', 'verticalCenter']
-  const report = new MoodyReport(plate, ...lines.map(line => Array(getNumberOfStations(line, plate)).fill(0)))
+  const report = new MoodyReport(plate, ...(useMoodyData ? api.moodyData : lines.map(line => Array(getNumberOfStations(line, plate)).fill(0))))
   api.initialize3DTableGraphic(report)
   const frame = () => frames.shift()(16)
   frame()
@@ -229,6 +229,26 @@ describe('3D table controls', () => {
     for (let i = bodyStart; i < buffers.types.length; i++) {
       expect(buffers.types[i]).toBe(2)
       expect(colors.slice(i * 4, i * 4 + 4)).toEqual([0.5, 0.5, 0.5, 0.75])
+    }
+  })
+
+  it.each([
+    ['northPerimeter', 1, 'maxY'], ['eastPerimeter', 0, 'maxX'],
+    ['southPerimeter', 1, 'minY'], ['westPerimeter', 0, 'minX']
+  ])('should continue the %s heights into both the surface edge and gray wall', (line, axis, bound) => {
+    const scene = createScene({}, [48, 72, 4], true)
+    const buffers = scene.api.getNonColorBuffers(scene.gl, scene.report, 50000)
+    const bounds = scene.api.getBoundingBox(scene.report)
+    const surfaceVertices = []
+    for (let i = 0; i < buffers.triangleVertices.length; i += 3) {
+      surfaceVertices.push(buffers.triangleVertices.slice(i, i + 3))
+    }
+    for (const reading of scene.report[line + 'Table'].vertices(50000)) {
+      const edge = Array.from(reading)
+      edge[axis] = bounds[bound]
+      const matches = vertex => vertex.every((value, index) => Math.abs(value - edge[index]) < 0.00001)
+      expect(surfaceVertices.some(matches)).toBe(true)
+      expect(buffers.tableThicknessVertices.some(matches)).toBe(true)
     }
   })
 

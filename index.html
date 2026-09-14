@@ -182,6 +182,60 @@
       vertical-align: middle;
     }
 
+    #tableTabs:not([hidden]) {
+      display: flex;
+      gap: 0.25rem;
+      overflow-x: auto;
+      margin-top: 1rem;
+      padding: 0.25rem;
+    }
+
+    #tableTabs button {
+      font: inherit;
+      white-space: nowrap;
+      padding: 0.375rem 0.625rem;
+      border: 0.0625rem solid #777;
+      border-top: 0.25rem solid var(--line-color);
+      background: #eee;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    #tableTabs button[aria-selected="true"] {
+      background: white;
+      font-weight: bold;
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+
+    #tableTabs button:focus-visible,
+    .tablePanel:focus-visible {
+      outline: 0.125rem solid currentColor;
+      outline-offset: 0.125rem;
+    }
+
+    .tablePanel:not([hidden]) {
+      display: flex;
+      flex-direction: row-reverse;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tablePanel > div {
+      min-width: 0;
+      overflow-x: auto;
+    }
+
+    .tablePanel table {
+      width: 100%;
+    }
+
+    .tablePanel input {
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 4rem;
+    }
+
     #topStartingDiagonalLineGroup:hover {
       stroke: hsl(from var(--l1-color) h s calc(l - 14));
       fill: hsl(from var(--l1-color) h s calc(l - 14));
@@ -353,7 +407,7 @@
     style="visibility: hidden; max-width: 31.25rem; margin-top: 0.250rem;">
     <rect id="outsideRect" x="0" y="0" fill="white" stroke="black" stroke-width="0.01em" />
     <rect id="insideRect" fill="white" stroke="black" stroke-width="0.01em" />
-    <a href="#topStartingDiagonalTable">
+    <a href="#topStartingDiagonalTable" aria-label="Top-starting diagonal table">
       <g id="topStartingDiagonalLineGroup" stroke="var(--l1-color)" fill="var(--l1-color)" stroke-width="0.018em">
         <path id="topStartingDiagonalLine" />
         <use xlink:href="#topStartingDiagonalLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
@@ -362,7 +416,7 @@
         </text>
       </g>
     </a>
-    <a href="#bottomStartingDiagonalTable">
+    <a href="#bottomStartingDiagonalTable" aria-label="Bottom-starting diagonal table">
       <g id="bottomStartingDiagonalLineGroup" stroke="var(--l2-color)" fill="var(--l2-color)" stroke-width="0.018em">
         <path id="bottomStartingDiagonalLine" />
         <use xlink:href="#bottomStartingDiagonalLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
@@ -371,7 +425,7 @@
         </text>
       </g>
     </a>
-    <a href="#northPerimeterTable">
+    <a href="#northPerimeterTable" aria-label="North perimeter table">
       <g id="northPerimeterLineGroup" stroke="var(--l3-color)" fill="var(--l3-color)" stroke-width="0.018em">
         <path id="northPerimeterLine" />
         <use xlink:href="#northPerimeterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
@@ -380,7 +434,7 @@
         </text>
       </g>
     </a>
-    <a href="#eastPerimeterTable">
+    <a href="#eastPerimeterTable" aria-label="East perimeter table">
       <g id="eastPerimeterLineGroup" stroke="var(--l4-color)" fill="var(--l4-color)" stroke-width="0.018em">
         <path id="eastPerimeterLine" />
         <use xlink:href="#eastPerimeterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
@@ -389,7 +443,7 @@
         </text>
       </g>
     </a>
-    <a href="#southPerimeterTable">
+    <a href="#southPerimeterTable" aria-label="South perimeter table">
       <g id="southPerimeterLineGroup" stroke="var(--l5-color)" fill="var(--l5-color)" stroke-width="0.018em">
         <path id="southPerimeterLine" />
         <use xlink:href="#southPerimeterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
@@ -398,7 +452,7 @@
         </text>
       </g>
     </a>
-    <a href="#westPerimeterTable">
+    <a href="#westPerimeterTable" aria-label="West perimeter table">
       <g id="westPerimeterLineGroup" stroke="var(--l6-color)" fill="var(--l6-color)" stroke-width="0.018em">
         <path id="westPerimeterLine" />
         <use xlink:href="#westPerimeterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
@@ -407,7 +461,7 @@
         </text>
       </g>
     </a>
-    <a href="#horizontalCenterTable">
+    <a href="#horizontalCenterTable" aria-label="Horizontal center table">
       <g id="horizontalCenterLineGroup" stroke="var(--l7-color)" fill="var(--l7-color)" stroke-width="0.018em">
         <path id="horizontalCenterLine" />
         <use xlink:href="#horizontalCenterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
@@ -416,7 +470,7 @@
         </text>
       </g>
     </a>
-    <a href="#verticalCenterTable">
+    <a href="#verticalCenterTable" aria-label="Vertical center table">
       <g id="verticalCenterLineGroup" stroke="var(--l8-color)" fill="var(--l8-color)" stroke-width="0.018em">
         <path id="verticalCenterLine" />
         <use xlink:href="#verticalCenterLine" stroke="transparent" fill="transparent" stroke-width="0.13em" />
@@ -426,7 +480,17 @@
       </g>
     </a>
   </svg>
-  <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
+  <div id="tableTabs" role="tablist" aria-label="Measurement lines" hidden>
+    <button type="button" role="tab" id="topStartingDiagonalTab" aria-controls="topStartingDiagonalPanel" aria-selected="true" style="--line-color: var(--l1-color);">Top-starting diagonal</button>
+    <button type="button" role="tab" id="bottomStartingDiagonalTab" aria-controls="bottomStartingDiagonalPanel" aria-selected="false" tabindex="-1" style="--line-color: var(--l2-color);">Bottom-starting diagonal</button>
+    <button type="button" role="tab" id="northPerimeterTab" aria-controls="northPerimeterPanel" aria-selected="false" tabindex="-1" style="--line-color: var(--l3-color);">North perimeter</button>
+    <button type="button" role="tab" id="eastPerimeterTab" aria-controls="eastPerimeterPanel" aria-selected="false" tabindex="-1" style="--line-color: var(--l4-color);">East perimeter</button>
+    <button type="button" role="tab" id="southPerimeterTab" aria-controls="southPerimeterPanel" aria-selected="false" tabindex="-1" style="--line-color: var(--l5-color);">South perimeter</button>
+    <button type="button" role="tab" id="westPerimeterTab" aria-controls="westPerimeterPanel" aria-selected="false" tabindex="-1" style="--line-color: var(--l6-color);">West perimeter</button>
+    <button type="button" role="tab" id="horizontalCenterTab" aria-controls="horizontalCenterPanel" aria-selected="false" tabindex="-1" style="--line-color: var(--l7-color);">Horizontal center</button>
+    <button type="button" role="tab" id="verticalCenterTab" aria-controls="verticalCenterPanel" aria-selected="false" tabindex="-1" style="--line-color: var(--l8-color);">Vertical center</button>
+  </div>
+  <div id="topStartingDiagonalPanel" class="tablePanel" role="tabpanel" aria-labelledby="topStartingDiagonalTab" tabindex="0" hidden>
     <div style="flex: 10;">
       <table id="topStartingDiagonalTable" style="visibility: hidden; border: 0.1875rem solid var(--l1-color);">
         <thead>
@@ -447,7 +511,7 @@
     <div id="topStartingDiagonalTableSvgContainer" style="flex: 2;">
     </div>
   </div>
-  <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
+  <div id="bottomStartingDiagonalPanel" class="tablePanel" role="tabpanel" aria-labelledby="bottomStartingDiagonalTab" tabindex="0" hidden>
     <div style="flex: 10;">
       <table id="bottomStartingDiagonalTable" style="visibility: hidden; border: 0.1875rem solid var(--l2-color);">
         <thead>
@@ -468,7 +532,7 @@
     <div id="bottomStartingDiagonalTableSvgContainer" style="flex: 2;">
     </div>
   </div>
-  <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
+  <div id="northPerimeterPanel" class="tablePanel" role="tabpanel" aria-labelledby="northPerimeterTab" tabindex="0" hidden>
     <div style="flex: 10;">
       <table id="northPerimeterTable" style="visibility: hidden; border: 0.1875rem solid var(--l3-color);">
         <thead>
@@ -489,7 +553,7 @@
     <div id="northPerimeterTableSvgContainer" style="flex: 2;">
     </div>
   </div>
-  <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
+  <div id="eastPerimeterPanel" class="tablePanel" role="tabpanel" aria-labelledby="eastPerimeterTab" tabindex="0" hidden>
     <div style="flex: 10;">
       <table id="eastPerimeterTable" style="visibility: hidden; border: 0.1875rem solid var(--l4-color);">
         <thead>
@@ -510,7 +574,7 @@
     <div id="eastPerimeterTableSvgContainer" style="flex: 2;">
     </div>
   </div>
-  <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
+  <div id="southPerimeterPanel" class="tablePanel" role="tabpanel" aria-labelledby="southPerimeterTab" tabindex="0" hidden>
     <div style="flex: 10;">
       <table id="southPerimeterTable" style="visibility: hidden; border: 0.1875rem solid var(--l5-color);">
         <thead>
@@ -531,7 +595,7 @@
     <div id="southPerimeterTableSvgContainer" style="flex: 2;">
     </div>
   </div>
-  <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
+  <div id="westPerimeterPanel" class="tablePanel" role="tabpanel" aria-labelledby="westPerimeterTab" tabindex="0" hidden>
     <div style="flex: 10;">
       <table id="westPerimeterTable" style="visibility: hidden; border: 0.1875rem solid var(--l6-color);">
         <thead>
@@ -552,7 +616,7 @@
     <div id="westPerimeterTableSvgContainer" style="flex: 2;">
     </div>
   </div>
-  <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
+  <div id="horizontalCenterPanel" class="tablePanel" role="tabpanel" aria-labelledby="horizontalCenterTab" tabindex="0" hidden>
     <div style="flex: 10;">
       <table id="horizontalCenterTable" style="visibility: hidden; border: 0.1875rem solid var(--l7-color);">
         <thead>
@@ -573,7 +637,7 @@
     <div id="horizontalCenterTableSvgContainer" style="flex: 2;">
     </div>
   </div>
-  <div style="display: flex; flex-direction: row-reverse; align-items: center; justify-content: center;">
+  <div id="verticalCenterPanel" class="tablePanel" role="tabpanel" aria-labelledby="verticalCenterTab" tabindex="0" hidden>
     <div style="flex: 10;">
       <table id="verticalCenterTable" style="visibility: hidden; border: 0.1875rem solid var(--l8-color);">
         <thead>
