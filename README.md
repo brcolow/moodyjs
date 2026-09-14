@@ -96,14 +96,11 @@ that the advice on rounding up to the nearest 25 µinches for calculated values 
 
 ## TODO
 
-* Add a way to show a semi-transparent plane that corresponds to grade "AA", "A", and "B" flatness. tolerance(AA) =  (40 + diagonal squared/25) x .000001″, A = tolerance(AA) * 2, B=tolerance(AA) * 4
+* Add a way to show a semi-transparent plane that corresponds to grade "AA", "A", and "B" flatness (one at a time). tolerance(AA) =  (40 + diagonal squared/25) x .000001″, A = tolerance(AA) * 2, B=tolerance(AA) * 4
 * Show a scale for the z-axis height values or add axes to the 3D scene.
 * Allow for "importing" a number set (maybe from a CSV file or a textarea with a simple format). 
-* Fix the way that some measuring lines are cut off on the 3D representation (this happens because the vertices are located at the first foot location).
 * (More) Metric support.
 * Show the locations of the carriage/sled as tick marks on the lines
-* The 'heat map' is pretty, but with everything set to zero it is showing a lot of distortion - look into this.
-* The UI takes up a lot of space, the data entry would be better as tabbed tables selectable by clicking on the corresponding line, and segments should be shown and similarly clickable to highlight the entry field. See https://dev.to/joxx/building-a-tab-component-with-pure-css-using-radio-and-label-tags-200b. Or maybe use an accordion (https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/details).
 * Be as color-blind friendly as possible.
 * Add a help section explaining exactly what values should be entered and where they are obtained from for people not familiar with the Moody method.
 * Add an in-depth section explaining the Moody method with references to the original paper and K.J. Hume's Engineering Metrology (which Moody's original paper cites).
