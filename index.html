@@ -175,11 +175,63 @@
 
     .lightLabel {
       display: inline-block;
-      width: 7.2rem;
+      width: 8.5rem;
     }
 
     .lightInput {
       vertical-align: middle;
+    }
+
+    #graphLabels {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      font: 12px sans-serif;
+      fill: #222;
+      stroke: white;
+      stroke-width: 3px;
+      paint-order: stroke;
+    }
+
+    #heightProbeMarker {
+      position: absolute;
+      width: 0.625rem;
+      height: 0.625rem;
+      border: 1px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px black;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    #surfaceMeasurements {
+      width: 50rem;
+      margin: 0.75rem 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #heightLegend {
+      position: relative;
+      height: 1rem;
+      margin: 0.375rem 0;
+      border: 1px solid #777;
+    }
+
+    #heightLegendMarker {
+      position: absolute;
+      top: -0.25rem;
+      bottom: -0.25rem;
+      width: 2px;
+      background: black;
+      box-shadow: 0 0 0 1px white;
+    }
+
+    #heightLegendLabels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
     }
 
     #tableTabs:not([hidden]) {
@@ -367,21 +419,28 @@
   <datalist id="markers">
     <option value="50000"></option>
   </datalist><br /><br />
-  <label for="lightPower" class="lightLabel">Light power: </label>
-  <input id="lightPower" class="lightInput" type="range" value="400" min="0" max="10000" step="any" /><br />
-  <label for="lightPosX" class="lightLabel">Light position X: </label>
-  <input id="lightPosX" class="lightInput" type="range" value="0" min="-100" max="100" step="any" /><br />
-  <label for="lightPosY" class="lightLabel">Light position Y: </label>
-  <input id="lightPosY" class="lightInput" type="range" value="0" min="-100" max="100" step="any" /><br />
-  <label for="lightPosZ" class="lightLabel">Light position Z: </label>
-  <input id="lightPosZ" class="lightInput" type="range" value="-40" min="-200" max="0" step="any" /><br />
+  <label for="lightStrength" class="lightLabel">Lighting strength: </label>
+  <input id="lightStrength" class="lightInput" type="range" value="0.6" min="0" max="0.9" step="0.01" /><br />
+  <label for="lightAzimuth" class="lightLabel">Light direction (°): </label>
+  <input id="lightAzimuth" class="lightInput" type="range" value="135" min="0" max="360" step="any" /><br />
+  <label for="lightElevation" class="lightLabel">Light elevation (°): </label>
+  <input id="lightElevation" class="lightInput" type="range" value="35" min="5" max="90" step="1" /><br />
+  <input type="checkbox" id="rotateLight" />
+  <label for="rotateLight">Rotate light</label><br />
   <br />
   <input type="checkbox" id="showLines" name="showLines" checked />
   <label for="showLines">Show Union Jack Lines</label><br />
   <input type="checkbox" id="showHeatmap" name="showHeatmap" checked />
   <label for="showHeatmap">Show Heatmap</label><br />
   <input type="checkbox" id="lightingOn" name="lightingOn" checked />
-  <label for="lightingOn">Lighting On</label><br /><br />
+  <label for="lightingOn">Lighting On</label><br />
+  <input type="checkbox" id="showContours" />
+  <label for="showContours">Show height contours</label><br />
+  <label for="surfaceView">View: </label>
+  <select id="surfaceView">
+    <option value="surface">3D surface</option>
+    <option value="contour">Isometric contour graph</option>
+  </select><br /><br />
   <div>FPS: <span id="fps"></span></div>
   <div>Avg FPS: <span id="avg"></span></div><br />
   <div id="controls"><b>Controls:</b>
@@ -393,7 +452,9 @@
   </div>
   <br />
   <div id="canvasContainer">
-    <canvas id="glcanvas" width="800" height="600"></canvas>
+    <canvas id="glcanvas" width="800" height="600" aria-label="Surface height view" aria-describedby="heightProbe"></canvas>
+    <svg id="graphLabels" aria-hidden="true"></svg>
+    <div id="heightProbeMarker" hidden></div>
     <!--
   This is preliminary work on being able to resize the canvas from all corners but for now seems like more work than it's worth. We do keep the bottom-right resize
   handle currently because it makes the resize graphic more visible to the user.
@@ -402,6 +463,15 @@
   <div class="resizeHandle bottomLeft"></div>
   -->
     <div class="resizeHandle bottomRight"></div>
+  </div>
+  <div id="surfaceMeasurements" hidden>
+    <div id="heightLegendContainer">
+      Height above the reference plane — unlit color scale:
+      <div id="heightLegend"><div id="heightLegendMarker" hidden></div></div>
+      <div id="heightLegendLabels"></div>
+    </div>
+    <div id="heightProbe">Move the pointer over the surface, or focus the view to inspect its center.</div>
+    <div id="graphNote"></div>
   </div>
   <svg id="tableGraphic" preserveAspectRatio="xMaxYMid meet"
     style="visibility: hidden; max-width: 31.25rem; margin-top: 0.250rem;">

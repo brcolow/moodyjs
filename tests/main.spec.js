@@ -18,13 +18,18 @@ function createScene(settings = {}, dimensions = [48, 72, 4], useMoodyData = fal
     getShaderParameter: () => true,
     getProgramParameter: () => true,
     getUniformLocation: (_, name) => name,
-    uniform1i: (name, value) => uniforms.set(name, value)
+    uniform1i: (name, value) => uniforms.set(name, value),
+    uniform1f: (name, value) => uniforms.set(name, value),
+    uniform2f: (name, x, y) => uniforms.set(name, [x, y]),
+    uniform3fv: (name, value) => uniforms.set(name, Array.from(value))
   }, { get: (object, key) => key in object ? object[key] : () => {} })
   const element = id => {
     if (!elements.has(id)) {
       elements.set(id, {
-        value: id === 'zMultiplier' ? '50000' : '0', checked: true,
+        value: ({ zMultiplier: '50000', lightAzimuth: '135', lightElevation: '35', lightStrength: '0.6', surfaceView: 'surface' })[id] || '0',
+        checked: !['rotateLight', 'showContours'].includes(id),
         width: 800, height: 600, style: {}, listeners: {},
+        setAttribute(name, value) { this[name] = value },
         addEventListener(type, callback) { this.listeners[type] = callback },
         getContext: () => gl,
         getBoundingClientRect: () => ({ x: 0, y: 0, left: 0, top: 0, width: 800, height: 600 })
@@ -37,7 +42,7 @@ function createScene(settings = {}, dimensions = [48, 72, 4], useMoodyData = fal
   }
   const document = { getElementById: element, querySelector: selector => element(selector.slice(1)) }
   const api = runInNewContext(source.replace(/^import .*$/gm, '') + `
-    ;({ initialize3DTableGraphic, reset3DTableView, getNonColorBuffers, getColorBuffer, getBoundingBox, moodyData,
+    ;({ initialize3DTableGraphic, reset3DTableView, getNonColorBuffers, getColorBuffer, getBoundingBox, getHeightScale, getGraphGrid, moodyData,
       get model() { return tableModelMatrix }, get view() { return viewMatrix },
       get projection() { return projectionMatrix }, get zoom() { return cumulativeZoomFactor },
       get height() { return zMultiplier } })`, {
@@ -50,11 +55,11 @@ function createScene(settings = {}, dimensions = [48, 72, 4], useMoodyData = fal
     'southPerimeter', 'westPerimeter', 'horizontalCenter', 'verticalCenter']
   const report = new MoodyReport(plate, ...(useMoodyData ? api.moodyData : lines.map(line => Array(getNumberOfStations(line, plate)).fill(0))))
   api.initialize3DTableGraphic(report)
-  const frame = () => frames.shift()(16)
+  const frame = (time = 16) => frames.shift()(time)
   frame()
   const canvas = element('glcanvas')
   return {
-    api, canvas, gl, report, uniforms, frame,
+    api, canvas, gl, report, uniforms, frame, element,
     drag(x0, y0, x1, y1) {
       canvas.onmousedown({ clientX: x0, clientY: y0, button: 0 })
       document.onmousemove({ clientX: x1, clientY: y1 })
@@ -196,6 +201,143 @@ describe('3D table controls', () => {
     for (let i = 2; i < buffers.triangleVertices.length; i += 3) {
       expect(buffers.triangleVertices[i]).toBe(0)
     }
+  })
+
+  it('should keep actual heights and contour intervals unchanged by height exaggeration', () => {
+    const scene = createScene({}, [48, 72, 4], true)
+    const initial = scene.api.getHeightScale(scene.api.getBoundingBox(scene.report), scene.api.height)
+    expect(initial.max).toBeCloseTo(178.41, 2)
+    expect(initial.step).toBe(50)
+    for (const multiplier of ['10000', '100000']) {
+      scene.element('zMultiplier').value = multiplier
+      scene.element('zMultiplier').listeners.input({ target: { value: multiplier } })
+      const scale = scene.api.getHeightScale(scene.api.getBoundingBox(scene.report), multiplier)
+      expect(scale.min).toBeCloseTo(initial.min, 8)
+      expect(scale.max).toBeCloseTo(initial.max, 8)
+      expect(scale.step).toBe(initial.step)
+      expect(scene.element('heightLegendLabels').innerHTML).toContain('178.41 µin (4.53 µm)')
+    }
+  })
+
+  it('should probe the rendered surface in actual units after changing its height multiplier', () => {
+    const scene = createScene({}, [48, 72, 4], true)
+    const vertices = scene.api.getNonColorBuffers(scene.gl, scene.report, 50000).triangleVertices
+    const centers = []
+    for (let i = 0; i < vertices.length; i += 9) {
+      centers.push(new Vector3((vertices[i] + vertices[i + 3] + vertices[i + 6]) / 3,
+        (vertices[i + 1] + vertices[i + 4] + vertices[i + 7]) / 3,
+        (vertices[i + 2] + vertices[i + 5] + vertices[i + 8]) / 3))
+    }
+    centers.sort((a, b) => Math.hypot(a.x - 36, a.y - 24) - Math.hypot(b.x - 36, b.y - 24))
+    const point = centers[0]
+    for (const multiplier of [50000, 100000]) {
+      scene.element('zMultiplier').listeners.input({ target: { value: String(multiplier) } })
+      scene.frame()
+      const projected = scene.project(new Vector3(point.x, point.y, point.z * multiplier / 50000))
+      scene.canvas.onmousemove({ clientX: (projected.x + 1) * 400, clientY: (1 - projected.y) * 300 })
+      scene.canvas.onfocus()
+      scene.frame()
+      expect(scene.element('heightProbe').textContent).toContain(`${(point.z * 20).toFixed(2)} µin`)
+      expect(scene.element('heightProbe').textContent).toContain(`X: ${point.x.toFixed(2)} in, Y: ${point.y.toFixed(2)} in`)
+      expect(parseFloat(scene.element('heightLegendMarker').style.left)).toBeCloseTo(point.z / scene.uniforms.get('heightRange')[1] * multiplier / 50000 * 100, 3)
+      expect(scene.element('heightProbeMarker').hidden).toBe(false)
+    }
+    scene.canvas.onmouseleave()
+    expect(scene.element('heightProbeMarker').hidden).toBe(true)
+    expect(scene.element('heightLegendMarker').hidden).toBe(true)
+  })
+
+  it('should rotate a unit light direction only while animation and lighting are enabled', () => {
+    const scene = createScene()
+    scene.frame(32)
+    expect(Number(scene.element('lightAzimuth').value)).toBe(135)
+    scene.element('rotateLight').checked = true
+    scene.frame(48)
+    expect(Number(scene.element('lightAzimuth').value)).toBeCloseTo(135.192, 6)
+    expect(Math.hypot(...scene.uniforms.get('lightDirection'))).toBeCloseTo(1, 8)
+    expect(scene.uniforms.get('lightStrength')).toBe(0.6)
+    const scale = scene.element('heightLegendLabels').innerHTML
+    scene.element('lightingOn').listeners.change({ target: { checked: false } })
+    scene.frame(64)
+    expect(Number(scene.element('lightAzimuth').value)).toBeCloseTo(135.192, 6)
+    expect(scene.element('heightLegendLabels').innerHTML).toBe(scale)
+    scene.element('lightAzimuth').listeners.input()
+    expect(scene.element('rotateLight').checked).toBe(false)
+  })
+
+  it('should restore the surface camera and contour setting after inspecting the graph', () => {
+    const scene = createScene()
+    scene.drag(400, 300, 560, 370)
+    scene.canvas.onwheel({ preventDefault() {}, deltaY: -1, ctrlKey: true })
+    scene.frame()
+    const model = Mat4.clone(scene.api.model)
+    const view = Mat4.clone(scene.api.view)
+    scene.element('surfaceView').listeners.change({ target: { value: 'contour' } })
+    scene.frame()
+    expect(scene.api.projection[15]).toBe(1)
+    expect(scene.api.projection[11]).toBe(0)
+    expect(scene.uniforms.get('showContours')).toBe(true)
+    expect(scene.uniforms.get('showLines')).toBe(false)
+    expect(scene.element('graphLabels').innerHTML).toContain('Height (µin)')
+    scene.drag(400, 300, 640, 400)
+    scene.canvas.onkeydown({ key: 'ArrowRight', preventDefault() {} })
+    scene.canvas.onkeyup({ key: 'ArrowRight' })
+    scene.element('surfaceView').listeners.change({ target: { value: 'surface' } })
+    scene.frame()
+    expect(scene.api.model).toEqual(model)
+    expect(scene.api.view).toEqual(view)
+    expect(scene.api.zoom).toBe(1.1)
+    expect(scene.api.projection[11]).toBe(-1)
+    expect(scene.uniforms.get('showContours')).toBe(false)
+    expect(scene.uniforms.get('showLines')).toBe(true)
+    expect(scene.element('graphLabels').innerHTML).toBe('')
+  })
+
+  it('should create a finite graph and a zero-height probe for flat data', () => {
+    const scene = createScene({ surfaceView: { value: 'contour' } })
+    const bounds = scene.api.getBoundingBox(scene.report)
+    const scale = scene.api.getHeightScale(bounds, scene.api.height)
+    expect(scale).toEqual({ min: 0, max: 0, step: 1, top: 1 })
+    expect(scene.api.getGraphGrid(bounds, scene.api.height).every(Number.isFinite)).toBe(true)
+    expect(Array.from(scene.api.projection).every(Number.isFinite)).toBe(true)
+    scene.canvas.onfocus()
+    scene.frame()
+    expect(scene.element('heightProbe').textContent).toContain('0.00 µin (0.00 µm)')
+    expect(scene.element('heightLegendMarker').style.left).toBe('0%')
+    expect(scene.element('heightLegend').style.backgroundImage).toBe('none')
+    expect(scene.element('heightLegendLabels').innerHTML).toBe('<span>0.00 µin (0.00 µm)</span>')
+    expect(scene.uniforms.get('showContours')).toBe(true)
+  })
+
+  it.each([
+    ['vertical', [10, 0, 0], 650, 270], ['horizontal', [0, 10, 0], 770, 150]
+  ])('should keep a %s drag on the isometric graph aligned with the screen', (_, direction, x, y) => {
+    const scene = createScene({ surfaceView: { value: 'contour' } })
+    const point = new Vector3(36, 24, 0).transformMat4(scene.api.view)
+      .add(direction).transformMat4(Mat4.clone(scene.api.view).invert())
+    const before = scene.project(point)
+    scene.drag(650, 150, x, y)
+    expect(scene.project(point).sub(before).magnitude).toBeLessThan(0.00001)
+  })
+
+  it.each([
+    ['ArrowUp', 'y', 1], ['ArrowDown', 'y', -1], ['ArrowRight', 'x', 1], ['ArrowLeft', 'x', -1]
+  ])('should pan the isometric graph in the screen direction of %s after rotation and zoom', (key, axis, direction) => {
+    const scene = createScene({ surfaceView: { value: 'contour' } })
+    scene.drag(400, 300, 560, 370)
+    scene.canvas.onkeydown({ key: 'a', preventDefault() {} })
+    scene.canvas.onkeyup({ key: 'a' })
+    scene.canvas.onwheel({ preventDefault() {}, deltaY: -1, ctrlKey: true })
+    scene.frame()
+    const point = new Vector3(36, 24, 0)
+    const before = scene.project(point)
+    scene.canvas.onkeydown({ key, preventDefault() {} })
+    scene.canvas.onkeyup({ key })
+    scene.frame()
+    const movement = scene.project(point).sub(before)
+    expect(movement[axis] * direction).toBeGreaterThan(0)
+    expect(movement[axis === 'x' ? 'y' : 'x']).toBeCloseTo(0, 5)
+    expect(movement.z).toBeCloseTo(0, 5)
   })
 
   it.each([[48, 72, 4], [36, 60, 3.5]])('should keep the %ix%i preview within the measured area with %fin spacing', (height, width, spacing) => {

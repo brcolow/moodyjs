@@ -2,7 +2,7 @@ import { interpolate, turboColormapData } from "./colormap.js"
 import { bowyerWatson } from "./delaunay.js"
 import { Mat4, Vector3 } from "./math.js"
 import { getNumberOfStations, MoodyReport, SurfacePlate, roundTo, roundToSlow } from "./moody.js"
-import WebGLDebugUtils from "./webgl-debug.js"
+// import WebGLDebugUtils from "./webgl-debug.js"
 
 // Moody's original paper states 48x78 which is a non-standard size. It is most likely a typo. Bruce Allen's corrections paper states:
 
@@ -61,7 +61,7 @@ window.addEventListener('DOMContentLoaded', () => {
       createTables()
     }
     // This is pretty lazy - we could instead use the suggested number of vertical/horizontal/diagonal stations instead of the selector query.
-    lines.forEach((line, lineIndex) => {
+    lines.forEach(line => {
       Array.from(document.querySelectorAll(`#${line}Table input[id^="${line}Table"]`))
       .filter(el => /^\d+$/.test(el.id.replace(`${line}Table`, '')))
       .forEach(tableEntry => tableEntry.value = 0.0)
@@ -303,6 +303,7 @@ function clearTableResults() {
   })
   document.getElementById("canvasContainer").style.display = "none"
   document.getElementById("controls").style.display = "none"
+  document.getElementById("surfaceMeasurements").hidden = true
 }
 
 // Recalculates the values by creating a new MoodyReport and updates the table cell values accordingly.
@@ -332,6 +333,7 @@ function refreshTables(lines, surfacePlate) {
       initialize3DTableGraphic(moodyReport)
       document.getElementById("canvasContainer").style.display = "block"
       document.getElementById("controls").style.display = "block"
+      document.getElementById("surfaceMeasurements").hidden = false
 
       lines.forEach(l => {
         Array.from(document.getElementById(l + "Table").getElementsByTagName("tbody")[0].rows).forEach((tableRow, index) => {
@@ -407,6 +409,8 @@ let tableVAO = null
 let showLines = true
 let showHeatmap = true
 let lightingOn = true
+let showContours = false
+let graphView = false
 let savedTableRotation = Mat4.create()
 let tableRotationMatrix = Mat4.create()
 let tableScaleMatrix = Mat4.create()
@@ -499,6 +503,121 @@ function getBoundingBox(moodyReport) {
   return { minX, maxX, minY, maxY, minZ, maxZ };
 }
 
+// Heights in the legend and graph axes are always in microinches, without exaggeration.
+function getHeightScale(bounds, multiplier) {
+  const min = bounds.minZ * 1000000 / multiplier
+  const max = bounds.maxZ * 1000000 / multiplier
+  const range = max - min
+  const magnitude = range > 0 ? 10 ** Math.floor(Math.log10(range / 5)) : 1
+  const step = [1, 2, 5, 10].find(value => value * magnitude >= range / 5) * magnitude
+  return { min, max, step, top: min + Math.max(1, Math.ceil(range / step)) * step }
+}
+
+function formatHeight(height) {
+  return `${height.toFixed(2)} µin (${(height * 0.0254).toFixed(2)} µm)`
+}
+
+function updateHeightLegend() {
+  const scale = getHeightScale(boundingBoxCache[zMultiplier], zMultiplier)
+  const flat = scale.min === scale.max
+  document.getElementById("heightLegend").style.backgroundColor = `rgb(${turboColormapData[0].map(value => Math.round(value * 255)).join(",")})`
+  document.getElementById("heightLegend").style.backgroundImage = flat ? "none" : "linear-gradient(to right, " + turboColormapData
+    .map((color, index) => `rgb(${color.map(value => Math.round(value * 255)).join(",")}) ${index * 100 / 255}%`).join(",") + ")"
+  document.getElementById("heightLegendLabels").innerHTML = (flat ? [scale.min] : [scale.min, (scale.min + scale.max) / 2, scale.max])
+    .map(value => `<span>${formatHeight(value)}</span>`).join("")
+  document.getElementById("heightLegendContainer").hidden = !showHeatmap
+  document.getElementById("graphNote").textContent = showContours || graphView
+    ? `Contour/grid interval: ${formatHeight(scale.step)}. Heights exaggerated ${Number(zMultiplier).toLocaleString()}×.` : ""
+}
+
+function updateHeightProbe(point, canvasPosition) {
+  const marker = document.getElementById("heightLegendMarker")
+  const cursor = document.getElementById("heightProbeMarker")
+  marker.hidden = cursor.hidden = !point
+  document.getElementById("heightProbe").textContent = point
+    ? `Interpolated height: ${formatHeight(point.z * 1000000 / zMultiplier)} — X: ${point.x.toFixed(2)} in, Y: ${point.y.toFixed(2)} in`
+    : "Move the pointer over the surface, or focus the view to inspect its center."
+  if (point) {
+    const { minZ, maxZ } = boundingBoxCache[zMultiplier]
+    marker.style.left = `${maxZ === minZ ? 0 : Math.max(0, Math.min(1, (point.z - minZ) / (maxZ - minZ))) * 100}%`
+    cursor.style.left = `${canvasPosition[0]}px`
+    cursor.style.top = `${canvasPosition[1]}px`
+  }
+}
+
+function getGraphGrid(bounds, multiplier) {
+  const { minX, maxX, minY, maxY, minZ } = bounds
+  const scale = getHeightScale(bounds, multiplier)
+  const top = scale.top * multiplier / 1000000
+  const vertices = []
+  for (let i = 0; i <= 5; i++) {
+    const x = minX + (maxX - minX) * i / 5
+    const y = minY + (maxY - minY) * i / 5
+    vertices.push(x, minY, minZ, x, maxY, minZ, minX, y, minZ, maxX, y, minZ,
+      x, maxY, minZ, x, maxY, top, minX, y, minZ, minX, y, top)
+  }
+  for (let value = scale.min; value <= scale.top + scale.step / 2; value += scale.step) {
+    const z = value * multiplier / 1000000
+    vertices.push(minX, minY, z, minX, maxY, z, minX, maxY, z, maxX, maxY, z)
+  }
+  return vertices
+}
+
+function updateGraphLabels(transform) {
+  const svg = document.getElementById("graphLabels")
+  if (!graphView) {
+    svg.innerHTML = ""
+    return
+  }
+  const canvas = document.getElementById("glcanvas")
+  const { minX, maxX, minY, maxY, minZ } = boundingBoxCache[zMultiplier]
+  const scale = getHeightScale(boundingBoxCache[zMultiplier], zMultiplier)
+  const label = (point, text, dx = 0, dy = 0, anchor = "middle") => {
+    const position = new Vector3(point).transformMat4(transform)
+    return `<text x="${(position.x + 1) * canvas.width / 2 + dx}" y="${(1 - position.y) * canvas.height / 2 + dy}" text-anchor="${anchor}">${text}</text>`
+  }
+  const labels = []
+  for (let i = 0; i <= 5; i++) {
+    const x = minX + (maxX - minX) * i / 5
+    const y = minY + (maxY - minY) * i / 5
+    labels.push(label([x, minY, minZ], x.toFixed(1), 0, 18), label([maxX, y, minZ], y.toFixed(1), 22, 4, "start"))
+  }
+  const labelTop = scale.max === scale.min ? scale.min : scale.top
+  let previousHeightLabelY = null
+  for (let value = scale.min; value <= labelTop + scale.step / 2; value += scale.step) {
+    const point = [minX, minY, value * zMultiplier / 1000000]
+    const y = (1 - new Vector3(point).transformMat4(transform).y) * canvas.height / 2
+    if (previousHeightLabelY === null || Math.abs(y - previousHeightLabelY) >= 16) {
+      labels.push(label(point, Number(value.toFixed(2)), -10, 4, "end"))
+      previousHeightLabelY = y
+    }
+  }
+  labels.push(label([(minX + maxX) / 2, minY, minZ], "X (in)", 0, 56),
+    label([maxX, (minY + maxY) / 2, minZ], "Y (in)", 50, 18),
+    label([minX, minY, labelTop * zMultiplier / 1000000], "Height (µin)", 0, -14))
+  svg.setAttribute("viewBox", `0 0 ${canvas.width} ${canvas.height}`)
+  svg.innerHTML = labels.join("")
+}
+
+function updateProjection() {
+  const canvas = document.getElementById("glcanvas")
+  const aspect = canvas.width / canvas.height
+  projectionMatrix = Mat4.create()
+  if (graphView) {
+    const bounds = boundingBoxCache[zMultiplier]
+    const scale = getHeightScale(bounds, zMultiplier)
+    const width = bounds.maxX - bounds.minX + bounds.maxY - bounds.minY
+    const height = (scale.top - scale.min) * zMultiplier / 1000000
+    const halfHeight = Math.max(width / Math.sqrt(6) + height * Math.sqrt(2 / 3), width / Math.sqrt(2) / aspect) * 0.64
+    projectionMatrix[0] = 1 / (halfHeight * aspect)
+    projectionMatrix[5] = 1 / halfHeight
+    projectionMatrix[10] = -2 / (1000 - 0.1)
+    projectionMatrix[14] = -(1000 + 0.1) / (1000 - 0.1)
+  } else {
+    projectionMatrix.perspective(Math.PI / 4, aspect, 0.1, 1000)
+  }
+}
+
 // Center the view on the table, leaving enough room even when all readings are zero.
 function reset3DTableView() {
   const canvas = document.getElementById("glcanvas")
@@ -511,7 +630,16 @@ function reset3DTableView() {
   tableTranslateMatrix = Mat4.create()
   savedTableRotation = Mat4.create()
   cumulativeZoomFactor = 1
-  viewMatrix.translate([-(maxX + minX) / 2, -(maxY + minY) / 2, -maxZ - distance])
+  if (graphView) {
+    viewMatrix.translate([0, 0, -distance - maxZ])
+    viewMatrix.rotate(-Math.atan(Math.sqrt(2)), [1, 0, 0])
+    viewMatrix.rotate(-Math.PI / 4, [0, 0, 1])
+    const scale = getHeightScale(boundingBoxCache[zMultiplier], zMultiplier)
+    viewMatrix.translate([-(maxX + minX) / 2, -(maxY + minY) / 2, -(scale.top + scale.min) * zMultiplier / 2000000])
+  } else {
+    viewMatrix.translate([-(maxX + minX) / 2, -(maxY + minY) / 2, -maxZ - distance])
+  }
+  updateProjection()
 }
 
 function zoom3DTable(point, zoomFactor) {
@@ -537,7 +665,17 @@ function initialize3DTableGraphic(moodyReport) {
   showLines = document.getElementById("showLines").checked
   showHeatmap = document.getElementById("showHeatmap").checked
   lightingOn = document.getElementById("lightingOn").checked
+  showContours = document.getElementById("showContours").checked
+  graphView = document.getElementById("surfaceView").value === "contour"
+  if (graphView) {
+    showContours = document.getElementById("showContours").checked = true
+    showLines = document.getElementById("showLines").checked = false
+  }
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+
+  let pointerPosition = null
+  let probeTransform = ""
+  let previousSurfaceView = null
 
   document.querySelector("#zMultiplier").addEventListener("input", event => {
     zMultiplier = event.target.value
@@ -545,11 +683,42 @@ function initialize3DTableGraphic(moodyReport) {
       boundingBoxCache[zMultiplier] = getBoundingBox(moodyReport)
     }
     buffers = createAndBindTableVAO(moodyReport, gl, programInfo, buffers)
+    updateHeightLegend()
+    updateProjection()
+    probeTransform = ""
   })
 
   document.getElementById("showLines").addEventListener("change", event => showLines = event.target.checked)
-  document.getElementById("showHeatmap").addEventListener("change", event => showHeatmap = event.target.checked)
+  document.getElementById("showHeatmap").addEventListener("change", event => {
+    showHeatmap = event.target.checked
+    updateHeightLegend()
+  })
   document.getElementById("lightingOn").addEventListener("change", event => lightingOn = event.target.checked)
+  document.getElementById("showContours").addEventListener("change", event => {
+    showContours = event.target.checked
+    updateHeightLegend()
+  })
+  document.getElementById("lightAzimuth").addEventListener("input", () => document.getElementById("rotateLight").checked = false)
+  document.getElementById("surfaceView").addEventListener("change", event => {
+    graphView = event.target.value === "contour"
+    if (graphView) {
+      previousSurfaceView = { viewMatrix, tableRotationMatrix, tableScaleMatrix, tableTranslateMatrix, cumulativeZoomFactor, showContours, showLines }
+      showContours = true
+      showLines = false
+      reset3DTableView()
+    } else if (previousSurfaceView) {
+      ;({ viewMatrix, tableRotationMatrix, tableScaleMatrix, tableTranslateMatrix, cumulativeZoomFactor, showContours, showLines } = previousSurfaceView)
+      savedTableRotation = tableRotationMatrix
+      updateProjection()
+    } else {
+      reset3DTableView()
+    }
+    document.getElementById("showContours").checked = showContours
+    document.getElementById("showLines").checked = showLines
+    startMousePosition = null
+    probeTransform = ""
+    updateHeightLegend()
+  })
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource)
 
   const programInfo = {
@@ -566,9 +735,13 @@ function initialize3DTableGraphic(moodyReport) {
       modelMatrix: gl.getUniformLocation(shaderProgram, "modelMatrix"),
       viewMatrix: gl.getUniformLocation(shaderProgram, "viewMatrix"),
       normalMatrix: gl.getUniformLocation(shaderProgram, "normalMatrix"),
-      lightPos: gl.getUniformLocation(shaderProgram, "lightPos"),
-      lightPower: gl.getUniformLocation(shaderProgram, "lightPower"),
+      lightDirection: gl.getUniformLocation(shaderProgram, "lightDirection"),
+      lightStrength: gl.getUniformLocation(shaderProgram, "lightStrength"),
       sampler: gl.getUniformLocation(shaderProgram, "sampler"),
+      colorMap: gl.getUniformLocation(shaderProgram, "colorMap"),
+      heightRange: gl.getUniformLocation(shaderProgram, "heightRange"),
+      contourStep: gl.getUniformLocation(shaderProgram, "contourStep"),
+      showContours: gl.getUniformLocation(shaderProgram, "showContours"),
       showLines: gl.getUniformLocation(shaderProgram, "showLines"),
       showHeatmap: gl.getUniformLocation(shaderProgram, "showHeatmap"),
       lightingOn: gl.getUniformLocation(shaderProgram, "lightingOn"),
@@ -597,11 +770,8 @@ function initialize3DTableGraphic(moodyReport) {
       }
 
       if (sizeChanged) {
-        const fieldOfView = (45 * Math.PI) / 180 // radians
-        const aspect = canvas.width / canvas.height
-        const zNear = 0.1
-        const zFar = 1000.0
-        projectionMatrix.perspective(fieldOfView, aspect, zNear, zFar)
+        updateProjection()
+        probeTransform = ""
       }
     }
   })
@@ -614,6 +784,22 @@ function initialize3DTableGraphic(moodyReport) {
     }
     savedTableRotation = tableRotationMatrix
     startMousePosition = toUniformClipSpace(canvas, event.clientX, event.clientY)
+  }
+
+  canvas.onmousemove = event => {
+    pointerPosition = [event.clientX, event.clientY]
+    probeTransform = ""
+  }
+  canvas.onmouseleave = () => {
+    pointerPosition = null
+    updateHeightProbe(null)
+  }
+  canvas.onfocus = () => {
+    if (!pointerPosition) {
+      const rect = canvas.getBoundingClientRect()
+      pointerPosition = [rect.left + rect.width / 2, rect.top + rect.height / 2]
+      probeTransform = ""
+    }
   }
 
   document.onmouseup = () => {
@@ -630,7 +816,7 @@ function initialize3DTableGraphic(moodyReport) {
       const angle = Math.hypot(dx, dy) * 0.6
 
       const { minX, maxX, minY, maxY, minZ, maxZ } = boundingBoxCache[zMultiplier]
-      const transform = Mat4.clone(tableScaleMatrix).multiply(tableTranslateMatrix)
+      const transform = Mat4.clone(viewMatrix).multiply(tableScaleMatrix).multiply(tableTranslateMatrix)
       const center = new Vector3((maxX + minX) / 2, (maxY + minY) / 2, (maxZ + minZ) / 2)
         .transformMat4(Mat4.clone(transform).multiply(savedTableRotation))
       // Apply the drag in screen axes around the transformed center of the table.
@@ -660,16 +846,17 @@ function initialize3DTableGraphic(moodyReport) {
       return
     }
 
-    // Do mouse position based zoom.
+    const intersection = pickTable(event.clientX, event.clientY)
+    if (intersection) {
+      // The view matrix takes world coordinates, so transform the model-space hit before zooming.
+      zoom3DTable(intersection.intersectionPoint.transformMat4(tableModelMatrix), zoomFactor)
+    }
+  }
 
-    // Implementation: Figure out the 3D coordinates of the table surface (if it intersects) from ray coming from mouse cursor
-    // before zoom and map that to (x, y, z) coordinate. Then, apply the zoom transform to it and see how much it will translate
-    // that point (where the mouse cursor is) by (which should be the only unmoved point). Then translate the entire table by
-    // that amount which should keep the point under the cursor unchanged.
-
+  function pickTable(clientX, clientY) {
     // Starting from clip space (i.e. normalized device coordinates) of the mouse position go to
     // the model position by multiplying by the inverse of P*V*M matrices which is M-1 * V-1 * P-1.
-    let mouseLocationClipSpace = toCanvasClipSpace(canvas, event.clientX, event.clientY)
+    let mouseLocationClipSpace = toCanvasClipSpace(canvas, clientX, clientY)
     // The mouse ray will start at zNear plane (-1 in NDC coords) and end at the zFar plane (1 in NDC coords).
     let rayStartClipSpace = new Vector3(mouseLocationClipSpace[0], mouseLocationClipSpace[1], -1)
     let rayEndClipSpace = new Vector3(mouseLocationClipSpace[0], mouseLocationClipSpace[1], 1)
@@ -681,25 +868,21 @@ function initialize3DTableGraphic(moodyReport) {
     rayStart = Vector3.transformMat4(rayStart, rayStartClipSpace, inverseTransform)
     rayEnd = Vector3.transformMat4(rayEnd, rayEndClipSpace, inverseTransform)
 
-    let intersection = {}
+    let intersection = null
     // Now that we have the ray, check to see which (if any) triangles of the table surface it intersects (and where on that triangle).
-    // TODO: We may also want to support mouse position zooming when the cursor is off the table, and we could do that by testing intersection
-    // with the plane z = boundingBoxCache[zMultiplier].maxZ - boundingBoxCache[zMultiplier].minZ) / 2.
-    const triangles = buffers.triangleVertices.concat(buffers.tableThicknessVertices.flat(1))
+    const triangles = graphView ? buffers.triangleVertices : buffers.triangleVertices.concat(buffers.tableThicknessVertices.flat(1))
     for (let i = 0; i < triangles.length; i += 9) {
       let v0 = new Vector3(triangles[i], triangles[i + 1], triangles[i + 2])
       let v1 = new Vector3(triangles[i + 3], triangles[i + 4], triangles[i + 5])
       let v2 = new Vector3(triangles[i + 6], triangles[i + 7], triangles[i + 8])
       let result = rayTriangleIntersect(rayStart, rayEnd, v0, v1, v2)
-      if (result != null && (intersection.t === undefined || result.t < intersection.t)) {
+      if (result != null && (intersection === null || result.t < intersection.t)) {
+        result.surface = i < buffers.triangleVertices.length
         intersection = result
       }
     }
 
-    if (Object.keys(intersection).length !== 0) {
-      // The view matrix takes world coordinates, so transform the model-space hit before zooming.
-      zoom3DTable(intersection.intersectionPoint.transformMat4(tableModelMatrix), zoomFactor)
-    }
+    return intersection
   }
 
   function showWebGLFailedError() {
@@ -745,11 +928,6 @@ function initialize3DTableGraphic(moodyReport) {
       const rect = canvas.getBoundingClientRect()
       const mouseX = e.clientX - rect.left
       const mouseY = e.clientY - rect.top
-
-      const linkTop = textY - fontSize // rough top of text
-      const linkBottom = textY + 8 // bottom edge of underline
-      const linkLeft = textX
-      const linkRight = textX + textWidth
 
       if (mouseX >= linkArea.x &&
         mouseX <= linkArea.x + linkArea.width &&
@@ -855,6 +1033,12 @@ function initialize3DTableGraphic(moodyReport) {
     if (keyMap['ArrowLeft'] === true) {
       translateMatrix.translate([1.0, 0.0, 0.0])
     }
+    if (graphView) {
+      // Pan the graph along the screen axes.
+      viewMatrix[12] -= translateMatrix[12]
+      viewMatrix[13] -= translateMatrix[13]
+      translateMatrix[12] = translateMatrix[13] = 0
+    }
     if (keyMap['w'] === true) {
       translateMatrix.translate([0.0, 0.0, 1.0])
     }
@@ -888,15 +1072,34 @@ function initialize3DTableGraphic(moodyReport) {
   }
 
   const texture = loadTexture(gl, "granite_2048x2048_compressed.png")
+  const colorMap = loadColorMap(gl)
   // Flip image pixels into the bottom-to-top order that WebGL expects.
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0)
   gl.clear(gl.COLOR_BUFFER_BIT)
 
+  let lightTime = null
   function render(now) {
+    const elapsed = lightTime === null ? 0 : Math.min((now - lightTime) / 1000, 0.1)
+    lightTime = now
+    if (lightingOn && document.getElementById("rotateLight").checked) {
+      const azimuth = document.getElementById("lightAzimuth")
+      azimuth.value = (Number(azimuth.value) + elapsed * 12) % 360
+    }
     updateFps(now)
-    drawTableSurface(moodyReport, gl, programInfo, buffers, texture)
+    drawTableSurface(moodyReport, gl, programInfo, buffers, texture, colorMap)
+    const transform = Mat4.clone(projectionMatrix).multiply(viewMatrix).multiply(tableModelMatrix)
+    const transformKey = Array.from(transform).join(",")
+    if (probeTransform !== transformKey) {
+      updateGraphLabels(transform)
+      if (pointerPosition) {
+        const rect = canvas.getBoundingClientRect()
+        const hit = pickTable(...pointerPosition)
+        updateHeightProbe(hit?.surface ? hit.intersectionPoint : null, [pointerPosition[0] - rect.left, pointerPosition[1] - rect.top])
+      }
+      probeTransform = transformKey
+    }
     requestAnimationFrame(render)
   }
   requestAnimationFrame(render)
@@ -929,9 +1132,15 @@ function initialize3DTableGraphic(moodyReport) {
     moodyReport = report
     boundingBoxCache = []
     buffers = createAndBindTableVAO(moodyReport, gl, programInfo, buffers)
+    updateHeightLegend()
+    updateHeightProbe(null)
+    probeTransform = ""
     if (resetTableView) {
+      previousSurfaceView = null
       reset3DTableView()
       resetTableView = false
+    } else {
+      updateProjection()
     }
   }
   update3DTableGraphic(moodyReport)
@@ -942,7 +1151,8 @@ function initialize3DTableGraphic(moodyReport) {
 function createAndBindTableVAO(moodyReport, gl, programInfo, previousBuffers) {
   if (previousBuffers) {
     gl.deleteVertexArray(tableVAO)
-    for (const key of ["positionBuffer", "normalBuffer", "textureBuffer", "typeBuffer", "lineColors"]) {
+    gl.deleteVertexArray(previousBuffers.gridVAO)
+    for (const key of ["positionBuffer", "normalBuffer", "textureBuffer", "typeBuffer", "lineColors", "gridBuffer"]) {
       gl.deleteBuffer(previousBuffers[key])
     }
   }
@@ -954,11 +1164,20 @@ function createAndBindTableVAO(moodyReport, gl, programInfo, previousBuffers) {
   setColorAttribute(gl, buffers, programInfo)
   setTextureAttribute(gl, buffers, programInfo)
   setTypeAttribute(gl, buffers, programInfo)
+  const grid = getGraphGrid(boundingBoxCache[zMultiplier], zMultiplier)
+  buffers.gridVertexCount = grid.length / 3
+  buffers.gridVAO = gl.createVertexArray()
+  gl.bindVertexArray(buffers.gridVAO)
+  buffers.gridBuffer = gl.createBuffer()
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffers.gridBuffer)
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(grid), gl.STATIC_DRAW)
+  gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0)
+  gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition)
   return buffers
 }
 
 // Creates a 3D surface of the linear plate heights (calculated as Column #8 of the line tables).
-function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
+function drawTableSurface(moodyReport, gl, programInfo, buffers, texture, colorMap) {
   // We must set the model matrix to identity here because we are using relative (incremental) transforms.
   // We need to make it so that all of our event handlers only mess with currentTransformMatrix, and then that
   // will be applied to the model matrix.
@@ -966,9 +1185,10 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   tableModelMatrix.multiply(tableScaleMatrix)
   tableModelMatrix.multiply(tableTranslateMatrix)
   tableModelMatrix.multiply(tableRotationMatrix)
-  gl.clearColor(0.0, 0.0, 0.0, 1.0)
+  gl.clearColor(graphView ? 1 : 0, graphView ? 1 : 0, graphView ? 1 : 0, 1)
   gl.clearDepth(1.0)
   gl.enable(gl.DEPTH_TEST)
+  gl.disable(gl.BLEND)
   gl.depthFunc(gl.LEQUAL)
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -984,21 +1204,38 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   Mat4.invert(normalMatrix, Mat4.multiply(normalMatrix, viewMatrix, tableModelMatrix))
   normalMatrix.transpose()
 
-  const lightPos = [document.getElementById("lightPosX").value, document.getElementById("lightPosY").value, document.getElementById("lightPosZ").value]
-  const lightPower = document.getElementById("lightPower").value
+  const azimuth = Number(document.getElementById("lightAzimuth").value) * Math.PI / 180
+  const elevation = Number(document.getElementById("lightElevation").value) * Math.PI / 180
+  const lightDirection = [Math.cos(azimuth) * Math.cos(elevation), Math.sin(azimuth) * Math.cos(elevation), Math.sin(elevation)]
+  const bounds = boundingBoxCache[zMultiplier]
+  const scale = getHeightScale(bounds, zMultiplier)
 
   gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix)
   gl.uniformMatrix4fv(programInfo.uniformLocations.modelMatrix, false, tableModelMatrix)
   gl.uniformMatrix4fv(programInfo.uniformLocations.viewMatrix, false, viewMatrix)
   gl.uniformMatrix4fv(programInfo.uniformLocations.normalMatrix, false, normalMatrix)
-  gl.uniform3fv(programInfo.uniformLocations.lightPos, lightPos)
-  gl.uniform1f(programInfo.uniformLocations.lightPower, lightPower)
+  gl.uniform3fv(programInfo.uniformLocations.lightDirection, lightDirection)
+  gl.uniform1f(programInfo.uniformLocations.lightStrength, Number(document.getElementById("lightStrength").value))
+  gl.uniform2f(programInfo.uniformLocations.heightRange, bounds.minZ, bounds.maxZ)
+  gl.uniform1f(programInfo.uniformLocations.contourStep, scale.step * zMultiplier / 1000000)
+  gl.uniform1i(programInfo.uniformLocations.showContours, showContours)
   gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, texture)
   gl.uniform1i(programInfo.uniformLocations.sampler, 0)
+  gl.activeTexture(gl.TEXTURE1)
+  gl.bindTexture(gl.TEXTURE_2D, colorMap)
+  gl.uniform1i(programInfo.uniformLocations.colorMap, 1)
   gl.uniform1i(programInfo.uniformLocations.showLines, showLines)
   gl.uniform1i(programInfo.uniformLocations.showHeatmap, showHeatmap)
   gl.uniform1i(programInfo.uniformLocations.lightingOn, lightingOn)
+
+  if (graphView) {
+    gl.bindVertexArray(buffers.gridVAO)
+    gl.vertexAttrib1f(programInfo.attribLocations.vertexType, 3)
+    gl.vertexAttrib4f(programInfo.attribLocations.vertexColor, 0.65, 0.65, 0.65, 1)
+    gl.drawArrays(gl.LINES, 0, buffers.gridVertexCount)
+    gl.bindVertexArray(tableVAO)
+  }
 
   let offset = 0
   let vertexCount = moodyReport.topStartingDiagonalTable.vertices().flat(1).length / 3
@@ -1036,11 +1273,13 @@ function drawTableSurface(moodyReport, gl, programInfo, buffers, texture) {
   vertexCount = buffers.triangleVertices.length
   gl.drawArrays(gl.TRIANGLES, offset, vertexCount / 3)
 
-  gl.enable(gl.BLEND)
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-  offset += vertexCount / 3
-  vertexCount = buffers.tableThicknessVertices.length
-  gl.drawArrays(gl.TRIANGLES, offset, vertexCount)
+  if (!graphView) {
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    offset += vertexCount / 3
+    vertexCount = buffers.tableThicknessVertices.length
+    gl.drawArrays(gl.TRIANGLES, offset, vertexCount)
+  }
 
   gl.bindVertexArray(null)
   gl.bindBuffer(gl.ARRAY_BUFFER, null)
@@ -1059,7 +1298,7 @@ uniform mat4 normalMatrix;
 out lowp vec4 color;
 out highp vec2 textureCoord;
 out highp vec3 normalInterp;
-out highp vec3 vertPos;
+out highp float surfaceHeight;
 out highp float vVertexType;
 
 void main() {
@@ -1069,34 +1308,33 @@ void main() {
   vVertexType = vertexType;
 
   normalInterp = vec3(normalMatrix * vec4(vertexNormal, 0.0));
-  vec4 vertPos4 = viewMatrix * modelMatrix * vertexPosition;
-  vertPos = vec3(vertPos4) / vertPos4.w;
+  surfaceHeight = vertexPosition.z;
 }
 `
 
 const fsSource = `#version 300 es
-precision mediump float;
+precision highp float;
 in lowp vec4 color;
 in vec3 normalInterp;
-in vec3 vertPos;
+in highp float surfaceHeight;
 in highp vec2 textureCoord;
 in highp float vVertexType;
-const highp vec3 lightColor = vec3(1.0, 1.0, 1.0);
-const highp vec3 ambientColor = vec3(0.4, 0.4, 0.4);
-const highp vec3 diffuseColor = vec3(0.2, 0.2, 0.2);
-const highp vec3 specColor = vec3(1.0, 1.0, 1.0);
-const highp float shininess = 8.0;
-const highp float screenGamma = 2.2; // Assume the monitor is calibrated to the sRGB color space
-uniform vec3 lightPos;
-uniform float lightPower;
+uniform vec3 lightDirection;
+uniform float lightStrength;
 uniform sampler2D sampler;
+uniform sampler2D colorMap;
+uniform vec2 heightRange;
+uniform float contourStep;
+uniform bool showContours;
 uniform bool showLines;
 uniform bool showHeatmap;
 uniform bool lightingOn;
 out vec4 outputColor;
 
 void main() {
-  if (vVertexType == 0.0) {
+  if (vVertexType > 2.5) {
+    outputColor = color;
+  } else if (vVertexType == 0.0) {
     // This vertex belongs to one of the Union jack Moody lines.
     if (showLines) {
       outputColor = color;
@@ -1104,46 +1342,27 @@ void main() {
       discard;
     }
   } else {
-    // This vertex belongs to the table mesh.
-    vec3 normal = normalize(normalInterp);
-    vec3 lightDir = lightPos - vertPos;
-    float distance = length(lightDir);
-
-    distance = distance * distance;
-    lightDir = normalize(lightDir);
-
-    float lambertian = max(dot(lightDir, normal), 0.0);
-    float specular = 0.0;
-
-    if (lambertian > 0.0) {
-      vec3 viewDir = normalize(-vertPos);
-      vec3 halfDir = normalize(lightDir + viewDir);
-      float specAngle = max(dot(halfDir, normal), 0.0);
-      specular = pow(specAngle, shininess);
-    }
-
-    vec3 colorLinear = ambientColor +
-                        (diffuseColor * lambertian * lightColor * lightPower / distance) +
-                        (specColor * specular * lightColor * lightPower / distance);
-    // apply gamma correction (assume ambientColor, diffuseColor and specColor
-    // have been linearized, i.e. have no gamma correction in them)
-    vec3 colorGammaCorrected = pow(colorLinear, vec3(1.0 / screenGamma));
+    // A distant light gives a flat face uniform illumination. Keep shading below
+    // full brightness so highlights cannot clip the heatmap colors.
+    float diffuse = max(dot(normalize(lightDirection), normalize(normalInterp)), 0.0);
+    float shade = lightingOn ? pow(mix(1.0, diffuse, lightStrength), 1.0 / 2.2) : 1.0;
     if (vVertexType > 1.5) {
       // The plate sides and bottom stay gray in both display modes.
-      outputColor = lightingOn ? vec4(color.rgb * colorGammaCorrected, color.a) : color;
+      outputColor = vec4(color.rgb * shade, color.a);
     } else if (showHeatmap) {
-      if (lightingOn) {
-        outputColor = vec4(color.rgb * colorGammaCorrected, color.a);
-      } else {
-        outputColor = color;
-      }
+      // Interpolate height before looking up its color, just as the legend does.
+      float height = heightRange.y == heightRange.x ? 0.0 : (surfaceHeight - heightRange.x) / (heightRange.y - heightRange.x);
+      vec3 heatColor = texture(colorMap, vec2((clamp(height, 0.0, 1.0) * 255.0 + 0.5) / 256.0, 0.5)).rgb;
+      outputColor = vec4(heatColor * shade, 1.0);
     } else {
       // No heatmap - use the granite texture.
-      if (lightingOn) {
-        outputColor = texture(sampler, textureCoord) * vec4(colorGammaCorrected, 1.0);
-      } else {
-        outputColor = texture(sampler, textureCoord);
-      }
+      outputColor = texture(sampler, textureCoord) * vec4(vec3(shade), 1.0);
+    }
+    if (vVertexType < 1.5 && showContours && heightRange.y > heightRange.x) {
+      float level = (surfaceHeight - heightRange.x) / contourStep;
+      float width = max(fwidth(level), 0.00001);
+      float contour = 1.0 - smoothstep(width * 0.4, width * 1.2, abs(level - round(level)));
+      outputColor.rgb = mix(outputColor.rgb, vec3(0.12), contour * 0.8);
     }
   }
 }
@@ -1415,6 +1634,21 @@ function setTypeAttribute(gl, buffers, programInfo) {
     stride,
     offset)
   gl.enableVertexAttribArray(programInfo.attribLocations.vertexType)
+}
+
+// The same 256 colors are used by the unlit legend and the fragment shader.
+function loadColorMap(gl) {
+  const texture = gl.createTexture()
+  gl.activeTexture(gl.TEXTURE1)
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB8, 256, 1, 0, gl.RGB, gl.UNSIGNED_BYTE,
+    new Uint8Array(turboColormapData.flat().map(value => Math.round(value * 255))))
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+  gl.activeTexture(gl.TEXTURE0)
+  return texture
 }
 
 // Initialize texture and load its image.
