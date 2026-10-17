@@ -676,6 +676,14 @@ function initialize3DTableGraphic(moodyReport) {
   let pointerPosition = null
   let probeTransform = ""
   let previousSurfaceView = null
+  let renderPending = false
+
+  function requestRender() {
+    if (!renderPending) {
+      renderPending = true
+      requestAnimationFrame(render)
+    }
+  }
 
   document.querySelector("#zMultiplier").addEventListener("input", event => {
     zMultiplier = event.target.value
@@ -719,6 +727,12 @@ function initialize3DTableGraphic(moodyReport) {
     probeTransform = ""
     updateHeightLegend()
   })
+  for (const id of ["zMultiplier", "lightStrength", "lightAzimuth", "lightElevation"]) {
+    document.getElementById(id).addEventListener("input", requestRender)
+  }
+  for (const id of ["showLines", "showHeatmap", "lightingOn", "showContours", "surfaceView", "rotateLight"]) {
+    document.getElementById(id).addEventListener("change", requestRender)
+  }
   const shaderProgram = initShaderProgram(gl, vsSource, fsSource)
 
   const programInfo = {
@@ -772,6 +786,7 @@ function initialize3DTableGraphic(moodyReport) {
       if (sizeChanged) {
         updateProjection()
         probeTransform = ""
+        requestRender()
       }
     }
   })
@@ -789,6 +804,7 @@ function initialize3DTableGraphic(moodyReport) {
   canvas.onmousemove = event => {
     pointerPosition = [event.clientX, event.clientY]
     probeTransform = ""
+    requestRender()
   }
   canvas.onmouseleave = () => {
     pointerPosition = null
@@ -799,6 +815,7 @@ function initialize3DTableGraphic(moodyReport) {
       const rect = canvas.getBoundingClientRect()
       pointerPosition = [rect.left + rect.width / 2, rect.top + rect.height / 2]
       probeTransform = ""
+      requestRender()
     }
   }
 
@@ -827,6 +844,7 @@ function initialize3DTableGraphic(moodyReport) {
       }
       tableRotationMatrix.translate([-center.x, -center.y, -center.z])
       tableRotationMatrix.multiply(transform).multiply(savedTableRotation)
+      requestRender()
     }
   }
 
@@ -843,6 +861,7 @@ function initialize3DTableGraphic(moodyReport) {
       const { minX, maxX, minY, maxY, minZ, maxZ } = boundingBoxCache[zMultiplier]
       const center = new Vector3((maxX + minX) / 2, (maxY + minY) / 2, (maxZ + minZ) / 2).transformMat4(tableModelMatrix)
       zoom3DTable(center, zoomFactor)
+      requestRender()
       return
     }
 
@@ -850,6 +869,7 @@ function initialize3DTableGraphic(moodyReport) {
     if (intersection) {
       // The view matrix takes world coordinates, so transform the model-space hit before zooming.
       zoom3DTable(intersection.intersectionPoint.transformMat4(tableModelMatrix), zoomFactor)
+      requestRender()
     }
   }
 
@@ -1069,9 +1089,10 @@ function initialize3DTableGraphic(moodyReport) {
     if (keyMap['r'] === true) {
       reset3DTableView()
     }
+    requestRender()
   }
 
-  const texture = loadTexture(gl, "granite_2048x2048_compressed.png")
+  const texture = loadTexture(gl, "granite_2048x2048_compressed.png", requestRender)
   const colorMap = loadColorMap(gl)
   // Flip image pixels into the bottom-to-top order that WebGL expects.
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
@@ -1081,13 +1102,21 @@ function initialize3DTableGraphic(moodyReport) {
 
   let lightTime = null
   function render(now) {
+    renderPending = false
+    const rotating = lightingOn && document.getElementById("rotateLight").checked
     const elapsed = lightTime === null ? 0 : Math.min((now - lightTime) / 1000, 0.1)
+    if (lightTime === null) {
+      then = now * 0.001
+      frameTimes.length = 0
+      totalFPS = frameCursor = numFrames = 0
+    } else {
+      updateFps(now)
+    }
     lightTime = now
-    if (lightingOn && document.getElementById("rotateLight").checked) {
+    if (rotating) {
       const azimuth = document.getElementById("lightAzimuth")
       azimuth.value = (Number(azimuth.value) + elapsed * 12) % 360
     }
-    updateFps(now)
     drawTableSurface(moodyReport, gl, programInfo, buffers, texture, colorMap)
     const transform = Mat4.clone(projectionMatrix).multiply(viewMatrix).multiply(tableModelMatrix)
     const transformKey = Array.from(transform).join(",")
@@ -1100,9 +1129,13 @@ function initialize3DTableGraphic(moodyReport) {
       }
       probeTransform = transformKey
     }
-    requestAnimationFrame(render)
+    if (rotating) {
+      requestRender()
+    } else {
+      lightTime = null
+      fpsElem.textContent = avgElem.textContent = "Idle"
+    }
   }
-  requestAnimationFrame(render)
 
   function updateFps(now) {
     now *= 0.001
@@ -1142,6 +1175,7 @@ function initialize3DTableGraphic(moodyReport) {
     } else {
       updateProjection()
     }
+    requestRender()
   }
   update3DTableGraphic(moodyReport)
   gl.bindVertexArray(null)
@@ -1652,7 +1686,7 @@ function loadColorMap(gl) {
 }
 
 // Initialize texture and load its image.
-function loadTexture(gl, url) {
+function loadTexture(gl, url, onLoad) {
   const texture = gl.createTexture()
   gl.bindTexture(gl.TEXTURE_2D, texture)
   const level = 0
@@ -1677,6 +1711,7 @@ function loadTexture(gl, url) {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
     }
+    onLoad()
   }
   image.src = url
 

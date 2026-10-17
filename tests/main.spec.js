@@ -12,9 +12,13 @@ const source = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
 function createScene(settings = {}, dimensions = [48, 72, 4], useMoodyData = false) {
   const elements = new Map()
   const frames = []
+  const images = []
   const uniforms = new Map()
+  let drawCalls = 0
+  let resize
   const gl = new Proxy({
     canvas: { width: 800, height: 600 },
+    drawArrays: () => drawCalls++,
     getShaderParameter: () => true,
     getProgramParameter: () => true,
     getUniformLocation: (_, name) => name,
@@ -28,9 +32,12 @@ function createScene(settings = {}, dimensions = [48, 72, 4], useMoodyData = fal
       elements.set(id, {
         value: ({ zMultiplier: '50000', lightAzimuth: '135', lightElevation: '35', lightStrength: '0.6', surfaceView: 'surface' })[id] || '0',
         checked: !['rotateLight', 'showContours'].includes(id),
-        width: 800, height: 600, style: {}, listeners: {},
+        width: 800, height: 600, style: { minWidth: '', minHeight: '' }, listeners: {},
         setAttribute(name, value) { this[name] = value },
-        addEventListener(type, callback) { this.listeners[type] = callback },
+        addEventListener(type, callback) {
+          const previous = this.listeners[type]
+          this.listeners[type] = event => { previous?.(event); callback(event) }
+        },
         getContext: () => gl,
         getBoundingClientRect: () => ({ x: 0, y: 0, left: 0, top: 0, width: 800, height: 600 })
       })
@@ -48,18 +55,23 @@ function createScene(settings = {}, dimensions = [48, 72, 4], useMoodyData = fal
       get height() { return zMultiplier } })`, {
     console, Mat4, Vector3, bowyerWatson, interpolate, turboColormapData,
     document, window: { addEventListener() {} }, Float32Array, Uint8Array,
-    ResizeObserver: class { observe() {} }, Image: class {}, requestAnimationFrame: callback => frames.push(callback)
+    ResizeObserver: class { constructor(callback) { resize = callback } observe() {} },
+    Image: class { constructor() { images.push(this) } }, requestAnimationFrame: callback => frames.push(callback)
   })
   const plate = new SurfacePlate(...dimensions)
   const lines = ['topStartingDiagonal', 'bottomStartingDiagonal', 'northPerimeter', 'eastPerimeter',
     'southPerimeter', 'westPerimeter', 'horizontalCenter', 'verticalCenter']
   const report = new MoodyReport(plate, ...(useMoodyData ? api.moodyData : lines.map(line => Array(getNumberOfStations(line, plate)).fill(0))))
   api.initialize3DTableGraphic(report)
-  const frame = (time = 16) => frames.shift()(time)
+  const frame = (time = 16) => frames.shift()?.(time)
   frame()
   const canvas = element('glcanvas')
   return {
     api, canvas, gl, report, uniforms, frame, element,
+    get drawCalls() { return drawCalls },
+    get pendingFrames() { return frames.length },
+    loadTexture() { images[0].onload() },
+    resize(width, height) { resize([{ contentRect: { width, height } }]) },
     drag(x0, y0, x1, y1) {
       canvas.onmousedown({ clientX: x0, clientY: y0, button: 0 })
       document.onmousemove({ clientX: x1, clientY: y1 })
@@ -73,6 +85,63 @@ function createScene(settings = {}, dimensions = [48, 72, 4], useMoodyData = fal
 }
 
 describe('3D table controls', () => {
+  it('should stop drawing while idle and combine pointer updates into one frame', () => {
+    const scene = createScene()
+    const initialDraws = scene.drawCalls
+    expect(initialDraws).toBeGreaterThan(0)
+    expect(scene.pendingFrames).toBe(0)
+    scene.frame(1000)
+    expect(scene.drawCalls).toBe(initialDraws)
+    expect(scene.element('fps').textContent).toBe('Idle')
+    for (let x = 390; x <= 400; x++) {
+      scene.canvas.onmousemove({ clientX: x, clientY: 300 })
+    }
+    expect(scene.pendingFrames).toBe(1)
+    scene.frame(1016)
+    expect(scene.drawCalls).toBeGreaterThan(initialDraws)
+    expect(scene.element('heightProbe').textContent).toContain('0.00 µin')
+    expect(scene.pendingFrames).toBe(0)
+  })
+
+  it('should redraw after a texture loads, a resize, or a new report', () => {
+    const scene = createScene()
+    for (const update of [() => scene.loadTexture(), () => scene.resize(1000, 700),
+      () => scene.api.initialize3DTableGraphic(scene.report)]) {
+      const before = scene.drawCalls
+      update()
+      expect(scene.pendingFrames).toBe(1)
+      scene.frame()
+      expect(scene.drawCalls).toBeGreaterThan(before)
+      expect(scene.pendingFrames).toBe(0)
+    }
+    expect(scene.canvas.width).toBe(1000)
+    expect(scene.canvas.height).toBe(700)
+  })
+
+  it('should redraw static lighting and display changes', () => {
+    const scene = createScene()
+    const initialDirection = scene.uniforms.get('lightDirection')
+    for (const [id, value] of [['lightAzimuth', '45'], ['lightElevation', '60'], ['lightStrength', '0.3']]) {
+      const input = scene.element(id)
+      input.value = value
+      input.listeners.input({ target: input })
+      expect(scene.pendingFrames).toBe(1)
+      scene.frame()
+      expect(scene.pendingFrames).toBe(0)
+    }
+    expect(scene.uniforms.get('lightDirection')).not.toEqual(initialDirection)
+    expect(scene.uniforms.get('lightStrength')).toBe(0.3)
+    for (const id of ['showLines', 'showHeatmap', 'lightingOn', 'showContours']) {
+      const checkbox = scene.element(id)
+      checkbox.checked = !checkbox.checked
+      checkbox.listeners.change({ target: checkbox })
+      expect(scene.pendingFrames).toBe(1)
+      scene.frame()
+      expect(scene.uniforms.get(id)).toBe(checkbox.checked)
+      expect(scene.pendingFrames).toBe(0)
+    }
+  })
+
   it('should keep the table center fixed during successive drags', () => {
     const scene = createScene()
     const center = new Vector3(36, 24, 0)
@@ -252,17 +321,34 @@ describe('3D table controls', () => {
     scene.frame(32)
     expect(Number(scene.element('lightAzimuth').value)).toBe(135)
     scene.element('rotateLight').checked = true
+    scene.element('rotateLight').listeners.change()
+    expect(scene.pendingFrames).toBe(1)
     scene.frame(48)
+    expect(Number(scene.element('lightAzimuth').value)).toBe(135)
+    expect(scene.pendingFrames).toBe(1)
+    scene.frame(64)
     expect(Number(scene.element('lightAzimuth').value)).toBeCloseTo(135.192, 6)
     expect(Math.hypot(...scene.uniforms.get('lightDirection'))).toBeCloseTo(1, 8)
     expect(scene.uniforms.get('lightStrength')).toBe(0.6)
     const scale = scene.element('heightLegendLabels').innerHTML
     scene.element('lightingOn').listeners.change({ target: { checked: false } })
-    scene.frame(64)
+    scene.frame(80)
     expect(Number(scene.element('lightAzimuth').value)).toBeCloseTo(135.192, 6)
     expect(scene.element('heightLegendLabels').innerHTML).toBe(scale)
+    expect(scene.pendingFrames).toBe(0)
+    scene.element('lightingOn').listeners.change({ target: { checked: true } })
+    scene.frame(10000)
+    expect(Number(scene.element('lightAzimuth').value)).toBeCloseTo(135.192, 6)
+    scene.frame(10016)
+    expect(Number(scene.element('lightAzimuth').value)).toBeCloseTo(135.384, 6)
+    expect(scene.element('avg').textContent).toBe('62.5')
+    expect(scene.pendingFrames).toBe(1)
     scene.element('lightAzimuth').listeners.input()
     expect(scene.element('rotateLight').checked).toBe(false)
+    scene.frame(10032)
+    expect(scene.pendingFrames).toBe(0)
+    expect(scene.element('fps').textContent).toBe('Idle')
+    expect(scene.element('avg').textContent).toBe('Idle')
   })
 
   it('should restore the surface camera and contour setting after inspecting the graph', () => {
