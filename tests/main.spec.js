@@ -272,6 +272,24 @@ describe('3D table controls', () => {
     }
   })
 
+  it('should keep the granite grains square and the same size on different plates', () => {
+    let previousScale
+    for (const dimensions of [[48, 72, 4], [36, 60, 3.5], [12, 18, 2]]) {
+      const scene = createScene({}, dimensions)
+      const buffers = scene.api.getNonColorBuffers(scene.gl, scene.report, 50000)
+      const bounds = scene.api.getBoundingBox(scene.report)
+      const textureStart = scene.report.vertices().length * 2
+      const coordinates = Array.from(buffers.textureCoordinates.slice(textureStart, textureStart + buffers.triangleVertices.length / 3 * 2))
+      const u = coordinates.filter((_, index) => index % 2 === 0)
+      const v = coordinates.filter((_, index) => index % 2 === 1)
+      const scale = (Math.max(...u) - Math.min(...u)) / (bounds.maxX - bounds.minX)
+      expect(scale).toBeGreaterThan(0)
+      expect((Math.max(...v) - Math.min(...v)) / (bounds.maxY - bounds.minY)).toBeCloseTo(scale, 6)
+      if (previousScale !== undefined) expect(scale).toBeCloseTo(previousScale, 6)
+      previousScale = scale
+    }
+  })
+
   it('should keep actual heights and contour intervals unchanged by height exaggeration', () => {
     const scene = createScene({}, [48, 72, 4], true)
     const initial = scene.api.getHeightScale(scene.api.getBoundingBox(scene.report), scene.api.height)

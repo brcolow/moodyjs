@@ -1092,7 +1092,7 @@ function initialize3DTableGraphic(moodyReport) {
     requestRender()
   }
 
-  const texture = loadTexture(gl, "granite_2048x2048_compressed.png", requestRender)
+  const texture = loadTexture(gl, "granite_pink.webp", requestRender)
   const colorMap = loadColorMap(gl)
   // Flip image pixels into the bottom-to-top order that WebGL expects.
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
@@ -1390,7 +1390,13 @@ void main() {
       outputColor = vec4(heatColor * shade, 1.0);
     } else {
       // No heatmap - use the granite texture.
-      outputColor = texture(sampler, textureCoord) * vec4(vec3(shade), 1.0);
+      // Blend a narrow strip at tile edges with an offset copy to hide the joins.
+      vec2 edge = smoothstep(vec2(0.96), vec2(1.0), abs(fract(textureCoord) * 2.0 - 1.0));
+      vec4 granite = mix(
+        mix(texture(sampler, textureCoord), texture(sampler, textureCoord + vec2(0.5, 0.0)), edge.x),
+        mix(texture(sampler, textureCoord + vec2(0.0, 0.5)), texture(sampler, textureCoord + vec2(0.5, 0.5)), edge.x),
+        edge.y);
+      outputColor = granite * vec4(vec3(shade), 1.0);
     }
     if (vVertexType < 1.5 && showContours && heightRange.y > heightRange.x) {
       float level = (surfaceHeight - heightRange.x) / contourStep;
@@ -1521,9 +1527,8 @@ function getNonColorBuffers(gl, moodyReport, zMultiplier) {
   // Calculate and create texture buffer.
   const lineTextureCoords = moodyReport.vertices(zMultiplier).flatMap(() => [0.0, 1.0])
   const tableSurfaceRatio = (boundingBoxCache[zMultiplier].maxY - boundingBoxCache[zMultiplier].minY) / (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX)
-  //  Map [minX, maxX] => [0, 1] and [minY, maxY] => [0, 1]
-  // (val - A) * (b - a) / (B - A) + a
-  const numRepeatsX = 1
+  // Repeat every 24 inches so the grain size does not change with the plate size.
+  const numRepeatsX = (boundingBoxCache[zMultiplier].maxX - boundingBoxCache[zMultiplier].minX) / 24
   const numRepeatsY = numRepeatsX * tableSurfaceRatio
 
   const triangleTextureCoords = triangulation.flatMap((triangle) => [
@@ -1704,22 +1709,14 @@ function loadTexture(gl, url, onLoad) {
     gl.bindTexture(gl.TEXTURE_2D, texture)
     gl.texImage2D(gl.TEXTURE_2D, level, internalFormat, srcFormat, srcType, image)
 
-    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-      gl.generateMipmap(gl.TEXTURE_2D)
-    } else {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-    }
+    // WebGL2 supports mipmaps and repeating for all image sizes.
+    gl.generateMipmap(gl.TEXTURE_2D)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
     onLoad()
   }
   image.src = url
 
   return texture
-}
-
-function isPowerOf2(value) {
-  return (value & (value - 1)) === 0
 }
 
 // Initialize a shader program.
