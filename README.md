@@ -6,6 +6,8 @@ tables, a 3D surface, and an isometric contour graph.
 
 [Try it](https://brcolow.github.io/moodyjs/).
 
+![Moody's sample data in the isometric contour view](./screenshot.png)
+
 ## Getting Started
 
 To try Moody's sample data, leave the plate dimensions at **48 × 72 in** and the
@@ -23,15 +25,6 @@ Use the tabs or click a line in the Union Jack diagram to select its table.
 Once all readings are entered, use **View** to switch between the 3D surface and
 the isometric contour graph. Height exaggeration changes the display only; it does
 not change the calculated flatness.
-
-<details>
-<summary>Screenshots</summary>
-
-![Overall plate data](./screenshot1.png)
-![3D surface](./screenshot2.png)
-![Measurement tables](./screenshot3.png)
-
-</details>
 
 ## Library
 
